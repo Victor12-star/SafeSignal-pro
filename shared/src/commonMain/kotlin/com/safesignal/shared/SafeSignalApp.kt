@@ -40,6 +40,7 @@ fun SafeSignalApp(
     onRequestLocation: () -> Unit = {},
     onActivateSos: (EmergencyCategory, List<String>) -> Unit = { _, _ -> },
     sosInProgress: Boolean = false,
+    sosActivated: Boolean = false,
     sosStatusMessage: String? = null,
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
@@ -85,6 +86,7 @@ fun SafeSignalApp(
                         )
                     },
                     sosInProgress = sosInProgress,
+                    sosActivated = sosActivated,
                     sosStatusMessage = sosStatusMessage,
                 )
 
