@@ -1,0 +1,5 @@
+[functions.dispatch-emergency-sms]
+verify_jwt = false
+
+[functions.twilio-status-callback]
+verify_jwt = false
