@@ -48,3 +48,41 @@ jobs:
 
       - name: Compile Android debug build
         run: gradle :androidApp:assembleDebug --stacktrace
+
+
+  backend-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: safesignal_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d safesignal_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGPASSWORD: postgres
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Bootstrap Supabase auth stubs
+        run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/bootstrap.sql
+
+      - name: Apply backend security migration
+        run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/migrations/20261007190000_backend_security_foundation.sql
+
+      - name: Verify RLS and sensitive-token protections
+        run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/backend_security.sql
