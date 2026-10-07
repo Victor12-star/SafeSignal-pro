@@ -3,6 +3,9 @@ package com.safesignal.shared.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +27,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,9 +44,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safesignal.shared.country.CountrySafetyConfig
 import com.safesignal.shared.design.SafeSignalColors
+import com.safesignal.shared.emergency.EmergencyCategory
 import com.safesignal.shared.location.LocationQualityPolicy
 import com.safesignal.shared.location.LocationUiState
 import kotlin.math.roundToInt
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val emergencyCategories = listOf(
     "Personal Danger",
@@ -57,6 +65,10 @@ fun HomeScreen(
     locationState: LocationUiState,
     onRequestLocation: () -> Unit,
     onStartJourney: () -> Unit,
+    onActivateSos: (EmergencyCategory) -> Unit,
+    sosInProgress: Boolean = false,
+    sosActivated: Boolean = false,
+    sosStatusMessage: String? = null,
 ) {
     var selectedCategory by remember { mutableStateOf(emergencyCategories.first()) }
 
@@ -86,7 +98,14 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        SosFoundationControl(protectionReady)
+        SosFoundationControl(
+            protectionReady = protectionReady,
+            selectedCategory = selectedCategory.toEmergencyCategory(),
+            sosInProgress = sosInProgress,
+            sosActivated = sosActivated,
+            statusMessage = sosStatusMessage,
+            onActivate = onActivateSos,
+        )
 
         Button(
             onClick = onStartJourney,
@@ -392,7 +411,17 @@ private fun CategoryChip(
 }
 
 @Composable
-private fun SosFoundationControl(protectionReady: Boolean) {
+private fun SosFoundationControl(
+    protectionReady: Boolean,
+    selectedCategory: EmergencyCategory,
+    sosInProgress: Boolean,
+    sosActivated: Boolean,
+    statusMessage: String?,
+    onActivate: (EmergencyCategory) -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    val enabled = protectionReady && !sosInProgress && !sosActivated
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -403,21 +432,43 @@ private fun SosFoundationControl(protectionReady: Boolean) {
                 .size(184.dp)
                 .clip(CircleShape)
                 .background(
-                    if (protectionReady) SafeSignalColors.Emergency else Color(0xFF6D3540),
+                    if (enabled) SafeSignalColors.Emergency else Color(0xFF6D3540),
                 )
+                .pointerInput(enabled, selectedCategory) {
+                    if (!enabled) return@pointerInput
+
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+
+                        val releasedEarly = withTimeoutOrNull(2_000L) {
+                            waitForUpOrCancellation()
+                        } != null
+
+                        if (!releasedEarly) {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onActivate(selectedCategory)
+                            waitForUpOrCancellation()
+                        }
+                    }
+                }
                 .semantics {
                     role = Role.Button
-                    contentDescription = if (protectionReady) {
-                        "Hold for SOS"
-                    } else {
-                        "SOS unavailable until safety setup is complete"
+                    contentDescription = when {
+                        sosActivated -> "SOS incident active"
+                        sosInProgress -> "SOS activation in progress"
+                        protectionReady -> "Hold for SOS for 2 seconds"
+                        else -> "SOS unavailable until safety setup is complete"
                     }
                 },
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "HOLD FOR",
+                    text = when {
+                        sosActivated -> "INCIDENT"
+                        sosInProgress -> "SAVING"
+                        else -> "HOLD FOR"
+                    },
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -429,7 +480,11 @@ private fun SosFoundationControl(protectionReady: Boolean) {
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "2 seconds",
+                    text = when {
+                        sosActivated -> "Active"
+                        sosInProgress -> "Please wait"
+                        else -> "2 seconds"
+                    },
                     color = Color.White.copy(alpha = 0.82f),
                     fontSize = 12.sp,
                 )
@@ -437,16 +492,23 @@ private fun SosFoundationControl(protectionReady: Boolean) {
         }
 
         Text(
-            text = if (protectionReady) {
-                "Silent alert with haptic confirmation"
+            text = statusMessage ?: if (protectionReady) {
+                "Release early to cancel. A completed hold is saved before location starts."
             } else {
                 "SOS remains inactive until trusted-contact setup is complete"
             },
-            color = SafeSignalColors.TextSecondary,
+            color = if (statusMessage != null) SafeSignalColors.Warning else SafeSignalColors.TextSecondary,
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
         )
     }
+}
+
+private fun String.toEmergencyCategory(): EmergencyCategory = when (this) {
+    "Medical" -> EmergencyCategory.MEDICAL
+    "Accident" -> EmergencyCategory.ACCIDENT
+    "Threat" -> EmergencyCategory.THREAT_ROBBERY
+    else -> EmergencyCategory.PERSONAL_DANGER
 }
 
 @Composable

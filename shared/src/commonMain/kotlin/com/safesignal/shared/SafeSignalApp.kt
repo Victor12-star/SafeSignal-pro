@@ -26,6 +26,7 @@ import com.safesignal.shared.contacts.TrustedContactsScreen
 import com.safesignal.shared.country.CountrySafetyConfigs
 import com.safesignal.shared.design.SafeSignalColors
 import com.safesignal.shared.design.SafeSignalTheme
+import com.safesignal.shared.emergency.EmergencyCategory
 import com.safesignal.shared.home.HomeScreen
 import com.safesignal.shared.navigation.AppDestination
 import com.safesignal.shared.navigation.AppShell
@@ -37,6 +38,10 @@ fun SafeSignalApp(
     trustedContactRepository: TrustedContactRepository? = null,
     locationState: LocationUiState = LocationUiState.NotRequested,
     onRequestLocation: () -> Unit = {},
+    onActivateSos: (EmergencyCategory, List<String>) -> Unit = { _, _ -> },
+    sosInProgress: Boolean = false,
+    sosActivated: Boolean = false,
+    sosStatusMessage: String? = null,
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
     val repository = remember(trustedContactRepository) {
@@ -69,11 +74,20 @@ fun SafeSignalApp(
             when (destination) {
                 AppDestination.SOS -> HomeScreen(
                     country = CountrySafetyConfigs.Sweden,
-                    trustedContactCount = contacts.size,
-                    protectionReady = false,
+                    trustedContactCount = contacts.count { it.isActive },
+                    protectionReady = contactsLoaded && contacts.any { it.isActive },
                     locationState = locationState,
                     onRequestLocation = onRequestLocation,
                     onStartJourney = { destination = AppDestination.JOURNEY },
+                    onActivateSos = { category ->
+                        onActivateSos(
+                            category,
+                            contacts.filter { it.isActive }.map { it.id },
+                        )
+                    },
+                    sosInProgress = sosInProgress,
+                    sosActivated = sosActivated,
+                    sosStatusMessage = sosStatusMessage,
                 )
 
                 AppDestination.JOURNEY -> FoundationScreen(
