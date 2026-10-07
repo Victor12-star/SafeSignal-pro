@@ -1,5 +1,8 @@
 package com.safesignal.shared.contacts
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class ContactGroup(val displayName: String) {
     FAMILY("Family"),
     FRIENDS("Friends"),
@@ -10,6 +13,7 @@ enum class ContactGroup(val displayName: String) {
     CUSTOM("Custom"),
 }
 
+@Serializable
 enum class ContactAcceptanceStatus {
     PENDING,
     ACCEPTED,
@@ -17,6 +21,7 @@ enum class ContactAcceptanceStatus {
     BLOCKED,
 }
 
+@Serializable
 data class TrustedContact(
     val id: String,
     val name: String,
