@@ -32,3 +32,11 @@ A production PASS requires a real platform implementation plus reproducible auto
 SafeSignal must never display a successful delivery state unless the relevant transport or backend confirms it.
 
 Random-success simulation, fake GPS movement, developer control panels, and other prototype-only behavior must never ship in the production mobile application.
+
+
+## Phase 7 in progress
+
+- Encrypted local emergency incident store: IN PROGRESS
+- Save-first emergency persistence before network delivery: IN PROGRESS
+- Android Keystore-backed encryption: IN PROGRESS
+- Restart recovery and tamper detection: IN PROGRESS
