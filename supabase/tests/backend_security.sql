@@ -151,3 +151,95 @@ end
 $$;
 
 reset role;
+
+
+-- Client must not be able to self-accept a trusted contact.
+do $$
+begin
+  begin
+    insert into public.trusted_contacts(
+      user_id, contact_name, phone_e164, relationship_tag, contact_group, acceptance_status
+    ) values (
+      '00000000-0000-0000-0000-000000000001',
+      'Self Accepted Contact',
+      '+2348037654321',
+      'Family',
+      'Family',
+      'ACCEPTED'
+    );
+    raise exception 'Client unexpectedly self-approved trusted-contact acceptance';
+  exception
+    when raise_exception then
+      if sqlerrm = 'Client unexpectedly self-approved trusted-contact acceptance' then
+        raise;
+      end if;
+  end;
+end
+$$;
+
+-- Client must not be able to forge provider-derived incident delivery state.
+do $$
+begin
+  begin
+    update public.emergency_incidents
+    set status = 'DELIVERED'
+    where id = '10000000-0000-0000-0000-000000000001';
+
+    raise exception 'Client unexpectedly forged DELIVERED incident state';
+  exception
+    when raise_exception then
+      if sqlerrm = 'Client unexpectedly forged DELIVERED incident state' then
+        raise;
+      end if;
+  end;
+end
+$$;
+
+-- Authenticated clients only have read access to recipient delivery truth.
+do $$
+declare
+  can_insert boolean;
+  can_update boolean;
+  can_delete boolean;
+begin
+  select has_table_privilege(
+    'authenticated',
+    'public.emergency_recipients',
+    'INSERT'
+  ) into can_insert;
+
+  select has_table_privilege(
+    'authenticated',
+    'public.emergency_recipients',
+    'UPDATE'
+  ) into can_update;
+
+  select has_table_privilege(
+    'authenticated',
+    'public.emergency_recipients',
+    'DELETE'
+  ) into can_delete;
+
+  if can_insert or can_update or can_delete then
+    raise exception 'Authenticated client can mutate recipient delivery truth';
+  end if;
+end
+$$;
+
+-- Emergency bearer-token hashes are server-only.
+do $$
+declare
+  has_any_client_privilege boolean;
+begin
+  select
+    has_table_privilege('authenticated', 'public.emergency_access_tokens', 'SELECT') or
+    has_table_privilege('authenticated', 'public.emergency_access_tokens', 'INSERT') or
+    has_table_privilege('authenticated', 'public.emergency_access_tokens', 'UPDATE') or
+    has_table_privilege('authenticated', 'public.emergency_access_tokens', 'DELETE')
+  into has_any_client_privilege;
+
+  if has_any_client_privilege then
+    raise exception 'Authenticated client has access to emergency token hashes';
+  end if;
+end
+$$;
