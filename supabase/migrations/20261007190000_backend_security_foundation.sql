@@ -56,7 +56,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public, auth
-as $
+as $func$
 begin
   if auth.uid() is not null then
     if tg_op = 'INSERT' and new.acceptance_status <> 'PENDING' then
@@ -70,7 +70,7 @@ begin
 
   return new;
 end;
-$;
+$func$;
 
 create trigger trusted_contacts_protect_acceptance
 before insert or update on public.trusted_contacts
@@ -116,7 +116,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public, auth
-as $
+as $func$
 begin
   if auth.uid() is not null and new.status not in (
     'CREATED',
@@ -131,7 +131,7 @@ begin
 
   return new;
 end;
-$;
+$func$;
 
 create trigger emergency_incidents_protect_delivery_status
 before insert or update on public.emergency_incidents
