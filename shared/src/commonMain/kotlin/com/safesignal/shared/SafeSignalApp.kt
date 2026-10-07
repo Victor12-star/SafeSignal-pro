@@ -29,11 +29,14 @@ import com.safesignal.shared.design.SafeSignalTheme
 import com.safesignal.shared.home.HomeScreen
 import com.safesignal.shared.navigation.AppDestination
 import com.safesignal.shared.navigation.AppShell
+import com.safesignal.shared.location.LocationUiState
 import kotlinx.coroutines.launch
 
 @Composable
 fun SafeSignalApp(
     trustedContactRepository: TrustedContactRepository? = null,
+    locationState: LocationUiState = LocationUiState.NotRequested,
+    onRequestLocation: () -> Unit = {},
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
     val repository = remember(trustedContactRepository) {
@@ -68,6 +71,8 @@ fun SafeSignalApp(
                     country = CountrySafetyConfigs.Sweden,
                     trustedContactCount = contacts.size,
                     protectionReady = false,
+                    locationState = locationState,
+                    onRequestLocation = onRequestLocation,
                     onStartJourney = { destination = AppDestination.JOURNEY },
                 )
 
