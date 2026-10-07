@@ -16,7 +16,7 @@ class EncryptedEmergencyFileStoreTest {
     @Test
     fun roundTripPreservesIncident() {
         val file = tempStoreFile()
-        val store = EncryptedEmergencyFileStore(file) { key }
+        val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
         val expected = listOf(sampleIncident())
 
         store.writeAll(expected)
@@ -28,7 +28,7 @@ class EncryptedEmergencyFileStoreTest {
     @Test
     fun encryptedFileDoesNotExposePlaintext() {
         val file = tempStoreFile()
-        val store = EncryptedEmergencyFileStore(file) { key }
+        val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
         val incident = sampleIncident()
 
         store.writeAll(listOf(incident))
@@ -42,7 +42,7 @@ class EncryptedEmergencyFileStoreTest {
     @Test
     fun tamperedCiphertextIsRejected() {
         val file = tempStoreFile()
-        val store = EncryptedEmergencyFileStore(file) { key }
+        val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
         store.writeAll(listOf(sampleIncident()))
 
         val bytes = file.readBytes()
