@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 export type SmsQueueItem = {
   recipient_id: string
   incident_id: string
