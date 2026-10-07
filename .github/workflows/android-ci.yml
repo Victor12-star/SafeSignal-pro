@@ -81,8 +81,15 @@ jobs:
       - name: Bootstrap Supabase auth stubs
         run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/bootstrap.sql
 
-      - name: Apply backend security migration
-        run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/migrations/20261007190000_backend_security_foundation.sql
+      - name: Apply backend migrations
+        run: |
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying $migration"
+            psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f "$migration"
+          done
 
       - name: Verify RLS and sensitive-token protections
         run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/backend_security.sql
+
+      - name: Verify direct SMS queue protections
+        run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/direct_sms_queue.sql
