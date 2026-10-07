@@ -36,5 +36,8 @@ jobs:
       - name: Verify Gradle project
         run: gradle projects --stacktrace
 
+      - name: Run shared Android unit tests
+        run: gradle :shared:testDebugUnitTest --stacktrace
+
       - name: Compile Android debug build
         run: gradle :androidApp:assembleDebug --stacktrace
