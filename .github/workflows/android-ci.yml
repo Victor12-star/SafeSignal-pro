@@ -93,3 +93,23 @@ jobs:
 
       - name: Verify direct SMS queue protections
         run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/direct_sms_queue.sql
+
+
+  edge-function-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check SMS provider adapter
+        run: deno check supabase/functions/_shared/infobip.ts
+
+      - name: Test emergency SMS provider contract
+        run: deno test supabase/functions/_shared/sms_test.ts
