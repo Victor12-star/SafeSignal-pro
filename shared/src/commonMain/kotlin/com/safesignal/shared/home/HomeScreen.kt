@@ -67,6 +67,7 @@ fun HomeScreen(
     onStartJourney: () -> Unit,
     onActivateSos: (EmergencyCategory) -> Unit,
     sosInProgress: Boolean = false,
+    sosActivated: Boolean = false,
     sosStatusMessage: String? = null,
 ) {
     var selectedCategory by remember { mutableStateOf(emergencyCategories.first()) }
@@ -101,6 +102,7 @@ fun HomeScreen(
             protectionReady = protectionReady,
             selectedCategory = selectedCategory.toEmergencyCategory(),
             sosInProgress = sosInProgress,
+            sosActivated = sosActivated,
             statusMessage = sosStatusMessage,
             onActivate = onActivateSos,
         )
@@ -413,11 +415,12 @@ private fun SosFoundationControl(
     protectionReady: Boolean,
     selectedCategory: EmergencyCategory,
     sosInProgress: Boolean,
+    sosActivated: Boolean,
     statusMessage: String?,
     onActivate: (EmergencyCategory) -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
-    val enabled = protectionReady && !sosInProgress
+    val enabled = protectionReady && !sosInProgress && !sosActivated
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -451,6 +454,7 @@ private fun SosFoundationControl(
                 .semantics {
                     role = Role.Button
                     contentDescription = when {
+                        sosActivated -> "SOS incident active"
                         sosInProgress -> "SOS activation in progress"
                         protectionReady -> "Hold for SOS for 2 seconds"
                         else -> "SOS unavailable until safety setup is complete"
@@ -460,7 +464,11 @@ private fun SosFoundationControl(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = if (sosInProgress) "SAVING" else "HOLD FOR",
+                    text = when {
+                        sosActivated -> "INCIDENT"
+                        sosInProgress -> "SAVING"
+                        else -> "HOLD FOR"
+                    },
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -472,7 +480,11 @@ private fun SosFoundationControl(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = if (sosInProgress) "Please wait" else "2 seconds",
+                    text = when {
+                        sosActivated -> "Active"
+                        sosInProgress -> "Please wait"
+                        else -> "2 seconds"
+                    },
                     color = Color.White.copy(alpha = 0.82f),
                     fontSize = 12.sp,
                 )
