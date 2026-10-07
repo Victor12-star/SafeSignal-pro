@@ -1,31 +1,4 @@
 -- SafeSignal SMS dispatch worker foundation
--- Server-controlled delivery updates need a narrowly scoped bypass for the
--- existing client-protection trigger. The bypass is set only inside
--- security-definer functions that are not executable by app users.
-create or replace function public.protect_incident_delivery_status()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, auth
-as $func$
-begin
-  if coalesce(current_setting('safesignal.server_controlled', true), '') <> '1'
-     and auth.uid() is not null
-     and new.status not in (
-       'CREATED',
-       'PENDING_LOCATION',
-       'PENDING_DELIVERY',
-       'CONNECTION_LOST',
-       'RESOLVED',
-       'CANCELLED'
-     ) then
-    raise exception 'Delivery-derived emergency status is server controlled';
-  end if;
-
-  return new;
-end;
-$func$;
-
 -- Claims queued SMS rows atomically, records provider acceptance separately from delivery,
 -- and keeps all provider-derived truth server-controlled.
 
@@ -183,8 +156,6 @@ declare
   sent_count integer;
   failed_count integer;
 begin
-  perform set_config('safesignal.server_controlled', '1', true);
-
   select
     count(*),
     count(*) filter (where delivery_status = 'ACKNOWLEDGED'),
