@@ -49,6 +49,8 @@ private enum class ContactFilter(val label: String) {
 fun TrustedContactsScreen(
     contacts: List<TrustedContact>,
     defaultCallingCode: String,
+    storageMessage: String? = null,
+    isLoading: Boolean = false,
     onAddContact: (
         name: String,
         phoneE164: String,
@@ -110,6 +112,22 @@ fun TrustedContactsScreen(
             }
         }
 
+        if (storageMessage != null) {
+            Surface(
+                color = SafeSignalColors.Warning.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = storageMessage,
+                    modifier = Modifier.padding(14.dp),
+                    color = SafeSignalColors.Warning,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                )
+            }
+        }
+
         Surface(
             color = SafeSignalColors.BackgroundSurface,
             shape = RoundedCornerShape(14.dp),
@@ -160,7 +178,18 @@ fun TrustedContactsScreen(
             }
         }
 
-        if (visibleContacts.isEmpty()) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Loading trusted contacts…",
+                    color = SafeSignalColors.TextSecondary,
+                    fontSize = 12.sp,
+                )
+            }
+        } else if (visibleContacts.isEmpty()) {
             EmptyContactsState(hasAnyContacts = contacts.isNotEmpty())
         } else {
             LazyColumn(
