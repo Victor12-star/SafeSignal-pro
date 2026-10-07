@@ -91,14 +91,14 @@ fun HomeScreen(
                                 text = category,
                                 selected = selectedCategory == category,
                                 onClick = { selectedCategory = category },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth(0.48f),
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             SosFoundationControl(protectionReady)
 
