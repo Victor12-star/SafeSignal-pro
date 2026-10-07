@@ -93,3 +93,28 @@ jobs:
 
       - name: Verify direct SMS queue protections
         run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/direct_sms_queue.sql
+
+      - name: Verify SMS dispatch worker protections
+        run: psql -h 127.0.0.1 -U postgres -d safesignal_test -v ON_ERROR_STOP=1 -f supabase/tests/sms_dispatch_worker.sql
+
+
+  edge-functions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Test SMS helper behavior
+        run: deno test supabase/functions/_shared/sms_test.ts
+
+      - name: Type-check SMS edge functions
+        run: |
+          deno check supabase/functions/dispatch-emergency-sms/index.ts
+          deno check supabase/functions/twilio-status-callback/index.ts
