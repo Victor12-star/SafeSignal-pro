@@ -1,5 +1,8 @@
 package com.safesignal.shared.emergency
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class EmergencyState {
     CREATED,
     PENDING_LOCATION,
