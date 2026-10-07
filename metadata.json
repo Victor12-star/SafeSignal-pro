@@ -1,0 +1,6 @@
+{
+  "name": "SafeSignal - Emergency Safety Platform",
+  "description": "Production-grade personal safety platform engineered for Sweden and Nigeria with offline-first SOS, country-aware safety config, and live tracking.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

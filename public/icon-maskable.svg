@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Full background for Android maskable icon clipping -->
+  <rect width="512" height="512" fill="#0f172a"/>
+  <!-- Inner Safe Zone elements (within 80% circle) -->
+  <circle cx="256" cy="256" r="160" fill="#e11d48" opacity="0.2"/>
+  <path d="M256 108 L364 156 C364 264 308 356 256 390 C204 356 148 264 148 156 Z" fill="#e11d48"/>
+  <path d="M256 128 L348 168 C348 258 300 338 256 368 C212 338 164 258 164 168 Z" fill="#f43f5e"/>
+  <circle cx="256" cy="230" r="34" fill="#ffffff"/>
+  <path d="M256 230 L256 308" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="256" cy="328" r="9" fill="#ffffff"/>
+</svg>
