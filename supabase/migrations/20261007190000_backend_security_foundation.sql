@@ -51,6 +51,31 @@ create trigger trusted_contacts_set_updated_at
 before update on public.trusted_contacts
 for each row execute function public.set_updated_at();
 
+create or replace function public.protect_trusted_contact_acceptance()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $
+begin
+  if auth.uid() is not null then
+    if tg_op = 'INSERT' and new.acceptance_status <> 'PENDING' then
+      raise exception 'Trusted-contact acceptance is server controlled';
+    end if;
+
+    if tg_op = 'UPDATE' and new.acceptance_status is distinct from old.acceptance_status then
+      raise exception 'Trusted-contact acceptance is server controlled';
+    end if;
+  end if;
+
+  return new;
+end;
+$;
+
+create trigger trusted_contacts_protect_acceptance
+before insert or update on public.trusted_contacts
+for each row execute function public.protect_trusted_contact_acceptance();
+
 create table public.emergency_incidents (
   id uuid primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -82,6 +107,32 @@ create index emergency_incidents_status_idx on public.emergency_incidents(status
 create trigger emergency_incidents_set_updated_at
 before update on public.emergency_incidents
 for each row execute function public.set_updated_at();
+
+create or replace function public.protect_incident_delivery_status()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $
+begin
+  if auth.uid() is not null and new.status not in (
+    'CREATED',
+    'PENDING_LOCATION',
+    'PENDING_DELIVERY',
+    'CONNECTION_LOST',
+    'RESOLVED',
+    'CANCELLED'
+  ) then
+    raise exception 'Delivery-derived emergency status is server controlled';
+  end if;
+
+  return new;
+end;
+$;
+
+create trigger emergency_incidents_protect_delivery_status
+before insert or update on public.emergency_incidents
+for each row execute function public.protect_incident_delivery_status();
 
 create table public.emergency_locations (
   id uuid primary key default gen_random_uuid(),
@@ -232,25 +283,8 @@ using (
   )
 );
 
-create policy emergency_access_tokens_owner_all
-on public.emergency_access_tokens for all
-to authenticated
-using (
-  exists (
-    select 1
-    from public.emergency_incidents i
-    where i.id = emergency_access_tokens.incident_id
-      and i.user_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1
-    from public.emergency_incidents i
-    where i.id = emergency_access_tokens.incident_id
-      and i.user_id = auth.uid()
-  )
-);
+-- Emergency access tokens are server-only. The mobile client never receives
+-- database access to token hashes and can never create or mutate bearer tokens.
 
 revoke all on public.profiles from anon;
 revoke all on public.trusted_contacts from anon;
@@ -264,9 +298,11 @@ grant select, insert, update, delete on public.profiles to authenticated;
 grant select, insert, update, delete on public.trusted_contacts to authenticated;
 grant select, insert, update, delete on public.emergency_incidents to authenticated;
 grant select, insert, update, delete on public.emergency_locations to authenticated;
-grant select, insert, update, delete on public.emergency_recipients to authenticated;
+grant select on public.emergency_recipients to authenticated;
 grant select on public.emergency_acknowledgements to authenticated;
-grant select, insert, update, delete on public.emergency_access_tokens to authenticated;
+
+revoke insert, update, delete on public.emergency_recipients from authenticated;
+revoke all on public.emergency_access_tokens from authenticated;
 
 comment on table public.emergency_access_tokens is
   'Stores only hashes of bearer tokens. Raw emergency-view tokens must never be persisted.';
