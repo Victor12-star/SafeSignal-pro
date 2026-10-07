@@ -56,7 +56,7 @@ begin
     raise exception 'Service role is missing required SMS worker privileges';
   end if;
 end
-$;
+$$;
 
 create temporary table claimed_sms as
 select * from public.claim_emergency_sms_batch(10);
