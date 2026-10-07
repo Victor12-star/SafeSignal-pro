@@ -76,6 +76,9 @@ create trigger trusted_contacts_protect_acceptance
 before insert or update on public.trusted_contacts
 for each row execute function public.protect_trusted_contact_acceptance();
 
+revoke execute on function public.protect_trusted_contact_acceptance()
+from public, anon, authenticated;
+
 create table public.emergency_incidents (
   id uuid primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -133,6 +136,9 @@ $;
 create trigger emergency_incidents_protect_delivery_status
 before insert or update on public.emergency_incidents
 for each row execute function public.protect_incident_delivery_status();
+
+revoke execute on function public.protect_incident_delivery_status()
+from public, anon, authenticated;
 
 create table public.emergency_locations (
   id uuid primary key default gen_random_uuid(),
