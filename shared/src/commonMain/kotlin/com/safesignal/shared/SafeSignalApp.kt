@@ -8,6 +8,7 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -15,6 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.safesignal.shared.contacts.ContactAcceptanceStatus
+import com.safesignal.shared.contacts.ContactGroup
+import com.safesignal.shared.contacts.TrustedContact
+import com.safesignal.shared.contacts.TrustedContactsScreen
 import com.safesignal.shared.country.CountrySafetyConfigs
 import com.safesignal.shared.design.SafeSignalColors
 import com.safesignal.shared.design.SafeSignalTheme
@@ -25,6 +30,8 @@ import com.safesignal.shared.navigation.AppShell
 @Composable
 fun SafeSignalApp() {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
+    val contacts = remember { mutableStateListOf<TrustedContact>() }
+    var nextContactNumber by remember { mutableStateOf(1) }
 
     SafeSignalTheme {
         AppShell(
@@ -34,7 +41,7 @@ fun SafeSignalApp() {
             when (destination) {
                 AppDestination.SOS -> HomeScreen(
                     country = CountrySafetyConfigs.Sweden,
-                    trustedContactCount = 0,
+                    trustedContactCount = contacts.size,
                     protectionReady = false,
                     onStartJourney = { destination = AppDestination.JOURNEY },
                 )
@@ -44,9 +51,22 @@ fun SafeSignalApp() {
                     description = "Journey setup will be connected in its own tested production slice.",
                 )
 
-                AppDestination.CONTACTS -> FoundationScreen(
-                    title = "Trusted Contacts",
-                    description = "Contact management will be connected to secure local persistence before SOS is armed.",
+                AppDestination.CONTACTS -> TrustedContactsScreen(
+                    contacts = contacts,
+                    defaultCallingCode = CountrySafetyConfigs.Sweden.callingCode,
+                    onAddContact = { name, phoneE164, group ->
+                        contacts += TrustedContact(
+                            id = "session-contact-" + nextContactNumber,
+                            name = name,
+                            phoneE164 = phoneE164,
+                            group = group,
+                            acceptanceStatus = ContactAcceptanceStatus.PENDING,
+                        )
+                        nextContactNumber += 1
+                    },
+                    onRemoveContact = { id ->
+                        contacts.removeAll { it.id == id }
+                    },
                 )
 
                 AppDestination.SETTINGS -> FoundationScreen(
