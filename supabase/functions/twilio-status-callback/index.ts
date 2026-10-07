@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import { createClient } from "npm:@supabase/supabase-js@2"
 import twilio from "npm:twilio@6.1.2"
 import { readSupabaseSecretKey, requireEnv } from "../_shared/sms.ts"
