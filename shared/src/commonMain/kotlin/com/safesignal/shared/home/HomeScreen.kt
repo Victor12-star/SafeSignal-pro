@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safesignal.shared.country.CountrySafetyConfig
 import com.safesignal.shared.design.SafeSignalColors
+import com.safesignal.shared.location.LocationQualityPolicy
+import com.safesignal.shared.location.LocationUiState
+import kotlin.math.roundToInt
 
 private val emergencyCategories = listOf(
     "Personal Danger",
@@ -51,6 +54,8 @@ fun HomeScreen(
     country: CountrySafetyConfig,
     trustedContactCount: Int,
     protectionReady: Boolean,
+    locationState: LocationUiState,
+    onRequestLocation: () -> Unit,
     onStartJourney: () -> Unit,
 ) {
     var selectedCategory by remember { mutableStateOf(emergencyCategories.first()) }
@@ -67,6 +72,11 @@ fun HomeScreen(
             trustedContactCount = trustedContactCount,
             protectionReady = protectionReady,
             emergencyNumber = country.emergencyNumbers.firstOrNull()?.number ?: "Unavailable",
+        )
+
+        LocationStatusCard(
+            state = locationState,
+            onRequestLocation = onRequestLocation,
         )
 
         EmergencyTypeSelector(
@@ -198,6 +208,119 @@ private fun ProtectionStatus(
                     text = "Emergency",
                     color = SafeSignalColors.TextSecondary,
                     fontSize = 11.sp,
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun LocationStatusCard(
+    state: LocationUiState,
+    onRequestLocation: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = SafeSignalColors.BackgroundSurface,
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "Location",
+                    color = SafeSignalColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                when (state) {
+                    LocationUiState.NotRequested -> {
+                        Text(
+                            text = "Not checked yet. SafeSignal only asks when you choose to use location.",
+                            color = SafeSignalColors.TextSecondary,
+                            fontSize = 12.sp,
+                        )
+                    }
+
+                    LocationUiState.Loading -> {
+                        Text(
+                            text = "Getting your current location…",
+                            color = SafeSignalColors.TextSecondary,
+                            fontSize = 12.sp,
+                        )
+                    }
+
+                    LocationUiState.PermissionDenied -> {
+                        Text(
+                            text = "Location permission was not granted.",
+                            color = SafeSignalColors.Warning,
+                            fontSize = 12.sp,
+                        )
+                    }
+
+                    LocationUiState.ServicesDisabled -> {
+                        Text(
+                            text = "Device location services are turned off.",
+                            color = SafeSignalColors.Warning,
+                            fontSize = 12.sp,
+                        )
+                    }
+
+                    is LocationUiState.Error -> {
+                        Text(
+                            text = state.message,
+                            color = SafeSignalColors.Warning,
+                            fontSize = 12.sp,
+                        )
+                    }
+
+                    is LocationUiState.Available -> {
+                        val location = state.location
+                        val latitude = ((location.latitude * 10_000.0).roundToInt() / 10_000.0)
+                        val longitude = ((location.longitude * 10_000.0).roundToInt() / 10_000.0)
+                        val accuracy = location.accuracyMeters.roundToInt()
+
+                        Text(
+                            text = "${LocationQualityPolicy.qualityLabel(location)} · ±${accuracy} m",
+                            color = if (location.isPrecisePermission) {
+                                SafeSignalColors.Safe
+                            } else {
+                                SafeSignalColors.Warning
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "$latitude, $longitude",
+                            color = SafeSignalColors.TextSecondary,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = onRequestLocation,
+                enabled = state !is LocationUiState.Loading,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor = SafeSignalColors.PrimaryAction,
+                    contentColor = Color.White,
+                    disabledBackgroundColor = SafeSignalColors.CardSurface,
+                    disabledContentColor = SafeSignalColors.TextSecondary,
+                ),
+            ) {
+                Text(
+                    text = if (state is LocationUiState.Available) "Refresh" else "Check",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
