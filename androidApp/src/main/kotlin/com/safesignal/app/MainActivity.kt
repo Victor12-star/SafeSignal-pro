@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.safesignal.app.contacts.AndroidEncryptedTrustedContactRepository
 import com.safesignal.shared.SafeSignalApp
 
 class MainActivity : ComponentActivity() {
@@ -11,8 +12,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val trustedContactRepository = AndroidEncryptedTrustedContactRepository(
+            applicationContext,
+        )
+
         setContent {
-            SafeSignalApp()
+            SafeSignalApp(
+                trustedContactRepository = trustedContactRepository,
+            )
         }
     }
 }
