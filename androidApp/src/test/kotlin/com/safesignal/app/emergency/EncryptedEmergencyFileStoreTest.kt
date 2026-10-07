@@ -21,7 +21,11 @@ class EncryptedEmergencyFileStoreTest {
 
         store.writeAll(expected)
 
-        assertEquals(expected, store.readAll())
+        val reopened = EncryptedEmergencyFileStore(
+            file = file,
+            keyProvider = { key },
+        )
+        assertEquals(expected, reopened.readAll())
         file.parentFile?.deleteRecursively()
     }
 
