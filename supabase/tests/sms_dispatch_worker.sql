@@ -35,8 +35,28 @@ begin
   if can_claim or can_complete or can_fail or can_callback then
     raise exception 'Authenticated client can execute server-only SMS worker functions';
   end if;
+
+  if not has_function_privilege(
+    'service_role',
+    'public.claim_emergency_sms_batch(integer)',
+    'EXECUTE'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.complete_emergency_sms_attempt(uuid,uuid,text)',
+    'EXECUTE'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.fail_emergency_sms_attempt(uuid,uuid,text,integer)',
+    'EXECUTE'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.apply_twilio_status_callback(text,text,text)',
+    'EXECUTE'
+  ) then
+    raise exception 'Service role is missing required SMS worker privileges';
+  end if;
 end
-$$;
+$;
 
 create temporary table claimed_sms as
 select * from public.claim_emergency_sms_batch(10);
