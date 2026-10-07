@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -53,101 +52,57 @@ fun HomeScreen(
     trustedContactCount: Int,
     protectionReady: Boolean,
     onStartJourney: () -> Unit,
-    onOpenContacts: () -> Unit,
 ) {
     var selectedCategory by remember { mutableStateOf(emergencyCategories.first()) }
 
-    Scaffold(backgroundColor = SafeSignalColors.BackgroundPrimary) { paddingValues ->
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Header(country)
+
+        ProtectionStatus(
+            trustedContactCount = trustedContactCount,
+            protectionReady = protectionReady,
+            emergencyNumber = country.emergencyNumbers.firstOrNull()?.number ?: "Unavailable",
+        )
+
+        EmergencyTypeSelector(
+            selectedCategory = selectedCategory,
+            onCategorySelected = { selectedCategory = it },
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        SosFoundationControl(protectionReady)
+
+        Button(
+            onClick = onStartJourney,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                backgroundColor = SafeSignalColors.PrimaryAction,
+                contentColor = Color.White,
+            ),
         ) {
-            Header(country)
-
-            ProtectionStatus(
-                trustedContactCount = trustedContactCount,
-                protectionReady = protectionReady,
-                emergencyNumber = country.emergencyNumbers.firstOrNull()?.number ?: "Unavailable",
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Emergency type",
-                    color = SafeSignalColors.TextSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    text = "Start Safe Journey",
+                    fontWeight = FontWeight.Bold,
                 )
-
-                emergencyCategories.chunked(2).forEach { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        row.forEach { category ->
-                            CategoryChip(
-                                text = category,
-                                selected = selectedCategory == category,
-                                onClick = { selectedCategory = category },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            SosFoundationControl(protectionReady)
-
-            Button(
-                onClick = onStartJourney,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor = SafeSignalColors.PrimaryAction,
-                    contentColor = Color.White,
-                ),
-            ) {
-                Text("Start Safe Journey", fontWeight = FontWeight.Bold)
-            }
-
-            Surface(
-                color = SafeSignalColors.BackgroundSurface,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenContacts),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column {
-                        Text(
-                            text = "Trusted Contacts",
-                            color = SafeSignalColors.TextPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = if (trustedContactCount == 0) {
-                                "Add people who should receive your alerts"
-                            } else {
-                                "$trustedContactCount configured"
-                            },
-                            color = SafeSignalColors.TextSecondary,
-                            fontSize = 12.sp,
-                        )
-                    }
-                    Text(
-                        text = "Open",
-                        color = SafeSignalColors.PrimaryAction,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                Text(
+                    text = "Share your trip and enable safety monitoring",
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.78f),
+                )
             }
         }
+
+        QuickTriggersStatus()
     }
 }
 
@@ -162,11 +117,11 @@ private fun Header(country: CountrySafetyConfig) {
             Text(
                 text = "SafeSignal",
                 color = SafeSignalColors.TextPrimary,
-                fontSize = 24.sp,
+                fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Personal safety",
+                text = "Personal safety, ready when you need it",
                 color = SafeSignalColors.TextSecondary,
                 fontSize = 12.sp,
             )
@@ -216,12 +171,16 @@ private fun ProtectionStatus(
 
                 Column {
                     Text(
-                        text = if (protectionReady) "Protection Ready" else "Setup Required",
+                        text = if (protectionReady) "Protection Ready" else "Finish safety setup",
                         color = SafeSignalColors.TextPrimary,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "$trustedContactCount trusted contacts configured",
+                        text = if (trustedContactCount == 0) {
+                            "Add a trusted contact before SOS can be armed"
+                        } else {
+                            "$trustedContactCount trusted contacts configured"
+                        },
                         color = SafeSignalColors.TextSecondary,
                         fontSize = 12.sp,
                     )
@@ -246,6 +205,37 @@ private fun ProtectionStatus(
 }
 
 @Composable
+private fun EmergencyTypeSelector(
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = "Emergency type",
+            color = SafeSignalColors.TextSecondary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        emergencyCategories.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                row.forEach { category ->
+                    CategoryChip(
+                        text = category,
+                        selected = selectedCategory == category,
+                        onClick = { onCategorySelected(category) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CategoryChip(
     text: String,
     selected: Boolean,
@@ -259,7 +249,11 @@ private fun CategoryChip(
         modifier = modifier
             .height(48.dp)
             .border(1.dp, borderColor, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = "$text emergency type"
+            },
         color = background,
         shape = RoundedCornerShape(12.dp),
     ) {
@@ -299,9 +293,23 @@ private fun SosFoundationControl(protectionReady: Boolean) {
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("HOLD FOR", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text("SOS", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
-                Text("2 seconds", color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp)
+                Text(
+                    text = "HOLD FOR",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "SOS",
+                    color = Color.White,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "2 seconds",
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 12.sp,
+                )
             }
         }
 
@@ -309,11 +317,53 @@ private fun SosFoundationControl(protectionReady: Boolean) {
             text = if (protectionReady) {
                 "Silent alert with haptic confirmation"
             } else {
-                "Add trusted contacts and finish safety setup before SOS can be armed"
+                "SOS remains inactive until trusted-contact setup is complete"
             },
             color = SafeSignalColors.TextSecondary,
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
         )
+    }
+}
+
+@Composable
+private fun QuickTriggersStatus() {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Quick Triggers",
+            color = SafeSignalColors.TextSecondary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = SafeSignalColors.BackgroundSurface,
+            shape = RoundedCornerShape(14.dp),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(
+                        text = "Shake to SOS",
+                        color = SafeSignalColors.TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Motion trigger is not configured yet",
+                        color = SafeSignalColors.TextSecondary,
+                        fontSize = 12.sp,
+                    )
+                }
+                Text(
+                    text = "Off",
+                    color = SafeSignalColors.TextSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
     }
 }
