@@ -16,7 +16,10 @@ object SafeSignalBackendClientFactory {
             supabaseUrl = safe.projectUrl,
             supabaseKey = safe.publishableKey,
         ) {
-            install(Auth)
+            install(Auth) {
+                scheme = "com.safesignal.app"
+                host = "login-callback"
+            }
             install(Postgrest)
             install(Functions)
         }
