@@ -6,24 +6,34 @@ const SECURITY_HEADERS = {
   "referrer-policy": "no-referrer",
 };
 
-export function makeAssetLinksDocument(fingerprints) {
-  if (!Array.isArray(fingerprints) || fingerprints.length === 0) {
-    throw new Error("At least one verified signing fingerprint is required");
+const PACKAGE_FINGERPRINT_VARIABLES = Object.freeze([
+  ["com.safesignal.app", "ANDROID_RELEASE_SHA256"],
+  ["com.safesignal.app.debug", "ANDROID_DEBUG_SHA256"],
+]);
+
+function validatedFingerprints(raw) {
+  const values = (raw || "").split(",").map((value) => value.trim()).filter(Boolean);
+  if (!values.length) return [];
+  if (!values.every((value) => /^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/.test(value))) {
+    throw new Error("Invalid SHA-256 certificate fingerprint format");
   }
-  const clean = fingerprints.map((fingerprint) => {
-    if (!/^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/.test(fingerprint)) {
-      throw new Error("Invalid SHA-256 certificate fingerprint format");
-    }
-    return fingerprint;
+  return [...new Set(values)];
+}
+
+export function makeAssetLinksDocument(environment) {
+  const statements = PACKAGE_FINGERPRINT_VARIABLES.flatMap(([packageName, variable]) => {
+    const fingerprints = validatedFingerprints(environment[variable]);
+    return fingerprints.length ? [{
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: packageName,
+        sha256_cert_fingerprints: fingerprints,
+      },
+    }] : [];
   });
-  return [{
-    relation: ["delegate_permission/common.handle_all_urls"],
-    target: {
-      namespace: "android_app",
-      package_name: "com.safesignal.app",
-      sha256_cert_fingerprints: clean,
-    },
-  }];
+  if (!statements.length) throw new Error("At least one verified signing fingerprint is required");
+  return statements;
 }
 
 export default {
@@ -33,16 +43,8 @@ export default {
       return new Response("Not found", { status: 404 });
     }
     if (url.pathname === "/.well-known/assetlinks.json" && request.method === "GET") {
-      // This variable is provisioned only after the real release certificate is known.
-      const fingerprints = (env.ANDROID_RELEASE_SHA256 || "").split(",").map((s) => s.trim()).filter(Boolean);
-      if (!fingerprints.length) {
-        return new Response("App Links verification not configured", {
-          status: 503,
-          headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" },
-        });
-      }
       try {
-        return new Response(JSON.stringify(makeAssetLinksDocument(fingerprints)), {
+        return new Response(JSON.stringify(makeAssetLinksDocument(env)), {
           status: 200,
           headers: { ...SECURITY_HEADERS, "content-type": "application/json; charset=utf-8" },
         });
