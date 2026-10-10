@@ -37,8 +37,9 @@ class MainActivity : ComponentActivity() {
     private fun handleAuthenticationCallback(callbackIntent: Intent) {
         // Never log callback URLs: they may carry credentials or one-time codes.
         if (callbackIntent.action != Intent.ACTION_VIEW ||
-            callbackIntent.data?.scheme != "com.safesignal.app" ||
-            callbackIntent.data?.host != "login-callback"
+            callbackIntent.data?.scheme != "https" ||
+            callbackIntent.data?.host != "auth.vikwora.com" ||
+            callbackIntent.data?.path != "/login-callback"
         ) return
         backendProvider.client?.handleDeeplinks(callbackIntent)
     }
