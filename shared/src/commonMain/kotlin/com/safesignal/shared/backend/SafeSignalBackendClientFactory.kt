@@ -16,7 +16,10 @@ object SafeSignalBackendClientFactory {
             supabaseUrl = safe.projectUrl,
             supabaseKey = safe.publishableKey,
         ) {
-            install(Auth)
+            install(Auth) {
+                scheme = "https"
+                host = "auth.vikwora.com"
+            }
             install(Postgrest)
             install(Functions)
         }

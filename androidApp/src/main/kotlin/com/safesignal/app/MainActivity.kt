@@ -1,6 +1,7 @@
 package com.safesignal.app
 
 import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -14,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.safesignal.app.backend.AndroidBackendProvider
 import com.safesignal.app.contacts.AndroidEncryptedTrustedContactRepository
 import com.safesignal.app.emergency.AndroidEncryptedEmergencyIncidentRepository
 import com.safesignal.app.location.AndroidLocationClient
@@ -25,12 +27,32 @@ import com.safesignal.shared.emergency.EmergencyState
 import com.safesignal.shared.emergency.TransitionEmergencyIncidentUseCase
 import com.safesignal.shared.location.LocationQualityPolicy
 import com.safesignal.shared.location.LocationUiState
+import io.github.jan.supabase.auth.handleDeeplinks
 import java.util.UUID
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val backendProvider by lazy { AndroidBackendProvider() }
+
+    private fun handleAuthenticationCallback(callbackIntent: Intent) {
+        // Never log callback URLs: they may carry credentials or one-time codes.
+        if (callbackIntent.action != Intent.ACTION_VIEW ||
+            callbackIntent.data?.scheme != "https" ||
+            callbackIntent.data?.host != "auth.vikwora.com" ||
+            callbackIntent.data?.path != "/login-callback"
+        ) return
+        backendProvider.client?.handleDeeplinks(callbackIntent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleAuthenticationCallback(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleAuthenticationCallback(intent)
         enableEdgeToEdge()
 
         val trustedContactRepository = AndroidEncryptedTrustedContactRepository(

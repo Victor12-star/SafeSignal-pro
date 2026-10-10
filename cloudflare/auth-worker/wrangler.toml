@@ -1,0 +1,6 @@
+name = "safesignal-auth"
+main = "src/index.js"
+compatibility_date = "2026-10-09"
+
+# No route/custom domain attached. Do not add auth.vikwora.com until verified.
+# No secret signing fingerprints are hardcoded here.
