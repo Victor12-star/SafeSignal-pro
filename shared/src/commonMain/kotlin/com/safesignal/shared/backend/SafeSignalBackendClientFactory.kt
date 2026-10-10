@@ -17,8 +17,8 @@ object SafeSignalBackendClientFactory {
             supabaseKey = safe.publishableKey,
         ) {
             install(Auth) {
-                scheme = "com.safesignal.app"
-                host = "login-callback"
+                scheme = "https"
+                host = "auth.vikwora.com"
             }
             install(Postgrest)
             install(Functions)
