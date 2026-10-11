@@ -1,3 +1,4 @@
+
 package com.safesignal.shared.backend
 
 import io.github.jan.supabase.SupabaseClient
@@ -16,7 +17,11 @@ object SafeSignalBackendClientFactory {
             supabaseUrl = safe.projectUrl,
             supabaseKey = safe.publishableKey,
         ) {
-            install(Auth)
+            install(Auth) {
+                scheme = "https"
+                host = "auth.vikwora.com"
+                defaultRedirectUrl = "https://auth.vikwora.com/login-callback"
+            }
             install(Postgrest)
             install(Functions)
         }
