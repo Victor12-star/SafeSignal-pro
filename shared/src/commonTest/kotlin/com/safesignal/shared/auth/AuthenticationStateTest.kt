@@ -1,4 +1,3 @@
-
 package com.safesignal.shared.auth
 
 import kotlin.test.Test
