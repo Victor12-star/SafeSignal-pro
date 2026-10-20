@@ -16,6 +16,7 @@ class SupabaseAuthenticationSessionRepositoryTest {
         var sessionExists = false
         var userId = "test-user"
         var failure: Exception? = null
+        var verifiedUserLookups = 0
 
         override suspend fun awaitInitialization() {
             initialized = true
@@ -26,6 +27,7 @@ class SupabaseAuthenticationSessionRepositoryTest {
         }
 
         override suspend fun retrieveVerifiedUserId(): String {
+            verifiedUserLookups++
             failure?.let { throw it }
             return userId
         }
@@ -41,6 +43,8 @@ class SupabaseAuthenticationSessionRepositoryTest {
             repository.restoreSession()
         )
         assertTrue(gateway.initialized)
+        // No stored session means no identity retrieval should be attempted.
+        assertEquals(0, gateway.verifiedUserLookups)
     }
 
     @Test
@@ -56,6 +60,7 @@ class SupabaseAuthenticationSessionRepositoryTest {
             AuthenticationState.SignedIn("verified-user-123"),
             repository.restoreSession()
         )
+        assertEquals(1, gateway.verifiedUserLookups)
     }
 
     /**
