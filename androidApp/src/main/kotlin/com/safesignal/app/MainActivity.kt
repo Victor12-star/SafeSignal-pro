@@ -20,6 +20,9 @@ import com.safesignal.app.contacts.AndroidEncryptedTrustedContactRepository
 import com.safesignal.app.emergency.AndroidEncryptedEmergencyIncidentRepository
 import com.safesignal.app.location.AndroidLocationClient
 import com.safesignal.shared.SafeSignalApp
+import com.safesignal.shared.auth.AuthenticationSessionRepository
+import com.safesignal.shared.auth.AuthenticationState
+import com.safesignal.shared.auth.SupabaseAuthenticationSessionRepository
 import com.safesignal.shared.emergency.CreateEmergencyIncidentUseCase
 import com.safesignal.shared.emergency.EmergencyCategory
 import com.safesignal.shared.emergency.EmergencyIncidentRepository
@@ -62,12 +65,17 @@ class MainActivity : ComponentActivity() {
             applicationContext,
         )
         val locationClient = AndroidLocationClient(applicationContext)
+        // A missing or unavailable backend must never prevent the SOS interface from opening.
+        val authenticationRepository = runCatching {
+            backendProvider.client?.let(::SupabaseAuthenticationSessionRepository)
+        }.getOrNull()
 
         setContent {
             SafeSignalAndroidApp(
                 trustedContactRepository = trustedContactRepository,
                 emergencyIncidentRepository = emergencyIncidentRepository,
                 locationClient = locationClient,
+                authenticationRepository = authenticationRepository,
             )
         }
     }
@@ -78,6 +86,7 @@ private fun SafeSignalAndroidApp(
     trustedContactRepository: AndroidEncryptedTrustedContactRepository,
     emergencyIncidentRepository: EmergencyIncidentRepository,
     locationClient: AndroidLocationClient,
+    authenticationRepository: AuthenticationSessionRepository?,
 ) {
     var locationState by remember {
         mutableStateOf<LocationUiState>(LocationUiState.NotRequested)
@@ -86,6 +95,18 @@ private fun SafeSignalAndroidApp(
     var activeIncidentId by remember { mutableStateOf<String?>(null) }
     var sosStatusMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    var authenticationState by remember {
+        mutableStateOf<AuthenticationState>(AuthenticationState.Checking)
+    }
+
+    // Session restoration runs independently of SOS, contacts, and location startup.
+    LaunchedEffect(authenticationRepository) {
+        authenticationState = if (authenticationRepository == null) {
+            AuthenticationState.SignedOut
+        } else {
+            authenticationRepository.restoreSession()
+        }
+    }
 
     val createEmergencyIncident = remember(emergencyIncidentRepository) {
         CreateEmergencyIncidentUseCase(
@@ -245,5 +266,6 @@ private fun SafeSignalAndroidApp(
         sosInProgress = sosInProgress,
         sosActivated = activeIncidentId != null,
         sosStatusMessage = sosStatusMessage,
+        authenticationState = authenticationState,
     )
 }

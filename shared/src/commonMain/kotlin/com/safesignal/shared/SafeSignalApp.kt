@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.safesignal.shared.auth.AuthenticationState
 import com.safesignal.shared.contacts.ContactGroup
 import com.safesignal.shared.contacts.InMemoryTrustedContactRepository
 import com.safesignal.shared.contacts.TrustedContact
@@ -42,6 +43,7 @@ fun SafeSignalApp(
     sosInProgress: Boolean = false,
     sosActivated: Boolean = false,
     sosStatusMessage: String? = null,
+    authenticationState: AuthenticationState = AuthenticationState.SignedOut,
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
     val repository = remember(trustedContactRepository) {
@@ -133,6 +135,7 @@ fun SafeSignalApp(
                 AppDestination.SETTINGS -> FoundationScreen(
                     title = "Settings",
                     description = "Privacy, region, language and accessibility settings will live here.",
+                    authenticationState = authenticationState,
                 )
             }
         }
@@ -164,6 +167,7 @@ private fun persistContact(
 private fun FoundationScreen(
     title: String,
     description: String,
+    authenticationState: AuthenticationState? = null,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -185,6 +189,18 @@ private fun FoundationScreen(
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
             )
+            if (authenticationState != null) {
+                Text(
+                    text = when (authenticationState) {
+                        AuthenticationState.Checking -> "Account: Checking session"
+                        AuthenticationState.SignedOut -> "Account: Not signed in"
+                        is AuthenticationState.SignedIn -> "Account: Signed in"
+                        is AuthenticationState.Error -> "Account: Unable to verify session"
+                    },
+                    color = SafeSignalColors.TextSecondary,
+                    fontSize = 14.sp,
+                )
+            }
         }
     }
 }
