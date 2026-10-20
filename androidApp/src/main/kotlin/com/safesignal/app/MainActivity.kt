@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,6 +37,13 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val backendProvider by lazy { AndroidBackendProvider() }
+    private var foregroundSessionRevision by mutableIntStateOf(0)
+
+    override fun onResume() {
+        super.onResume()
+        // Revalidate an existing session whenever the app returns to the foreground.
+        foregroundSessionRevision++
+    }
 
     private fun handleAuthenticationCallback(callbackIntent: Intent) {
         // Never log callback URLs: they may carry credentials or one-time codes.
@@ -76,6 +84,7 @@ class MainActivity : ComponentActivity() {
                 emergencyIncidentRepository = emergencyIncidentRepository,
                 locationClient = locationClient,
                 authenticationRepository = authenticationRepository,
+                sessionRefreshRevision = foregroundSessionRevision,
             )
         }
     }
@@ -87,6 +96,7 @@ private fun SafeSignalAndroidApp(
     emergencyIncidentRepository: EmergencyIncidentRepository,
     locationClient: AndroidLocationClient,
     authenticationRepository: AuthenticationSessionRepository?,
+    sessionRefreshRevision: Int,
 ) {
     var locationState by remember {
         mutableStateOf<LocationUiState>(LocationUiState.NotRequested)
@@ -100,7 +110,8 @@ private fun SafeSignalAndroidApp(
     }
 
     // Session restoration runs independently of SOS, contacts, and location startup.
-    LaunchedEffect(authenticationRepository) {
+    LaunchedEffect(authenticationRepository, sessionRefreshRevision) {
+        authenticationState = AuthenticationState.Checking
         authenticationState = if (authenticationRepository == null) {
             AuthenticationState.SignedOut
         } else {
