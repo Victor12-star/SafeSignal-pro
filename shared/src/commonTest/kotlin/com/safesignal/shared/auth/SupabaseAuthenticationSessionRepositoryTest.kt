@@ -64,6 +64,27 @@ class SupabaseAuthenticationSessionRepositoryTest {
     }
 
     /**
+     * A signed-out startup must not permanently cache SignedOut.
+     * After a user signs in, a fresh restoration must verify the new session.
+     */
+    @Test
+    fun newlyCreatedSessionAfterSignedOutIsVerified() = runTest {
+        val gateway = FakeGateway()
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertEquals(AuthenticationState.SignedOut, repository.restoreSession())
+        assertEquals(0, gateway.verifiedUserLookups)
+
+        gateway.sessionExists = true
+        gateway.userId = "newly-verified-user"
+        assertEquals(
+            AuthenticationState.SignedIn("newly-verified-user"),
+            repository.restoreSession(),
+        )
+        assertEquals(1, gateway.verifiedUserLookups)
+    }
+
+    /**
      * Session restoration is repeated when the app resumes or auth changes.
      * A previously verified identity must not remain signed in after its local session disappears.
      */
