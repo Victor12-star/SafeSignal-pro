@@ -64,6 +64,27 @@ class SupabaseAuthenticationSessionRepositoryTest {
     }
 
     /**
+     * Session restoration is repeated when the app resumes or auth changes.
+     * A previously verified identity must not remain signed in after its local session disappears.
+     */
+    @Test
+    fun missingSessionAfterSuccessfulRestorationReturnsSignedOut() = runTest {
+        val gateway = FakeGateway().apply {
+            sessionExists = true
+            userId = "previous-user"
+        }
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertEquals(AuthenticationState.SignedIn("previous-user"), repository.restoreSession())
+        assertEquals(1, gateway.verifiedUserLookups)
+
+        gateway.sessionExists = false
+        assertEquals(AuthenticationState.SignedOut, repository.restoreSession())
+        // A missing session must short-circuit and never reuse or refetch the old identity.
+        assertEquals(1, gateway.verifiedUserLookups)
+    }
+
+    /**
      * A present local session is not enough to authenticate a user.
      * A missing or blank server-verified identity must fail closed.
      */
