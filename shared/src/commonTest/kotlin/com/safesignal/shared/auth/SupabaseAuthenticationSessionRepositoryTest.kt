@@ -155,6 +155,32 @@ class SupabaseAuthenticationSessionRepositoryTest {
         }
     }
 
+    /**
+     * A hanging network lookup after a locally stored session is found must time out.
+     * A cached session alone cannot justify showing the user as authenticated.
+     */
+    @Test
+    fun verifiedIdentityLookupTimeoutReturnsSafeError() = runTest {
+        val gateway = object : AuthenticationSessionGateway {
+            override suspend fun awaitInitialization() = Unit
+
+            override fun hasCurrentSession(): Boolean = true
+
+            override suspend fun retrieveVerifiedUserId(): String {
+                awaitCancellation()
+            }
+        }
+
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertEquals(
+            AuthenticationState.Error(
+                "Session verification timed out. Please try again."
+            ),
+            repository.restoreSession()
+        )
+    }
+
     @Test
     fun sessionVerificationTimeoutReturnsSafeError() = runTest {
         val gateway = object : AuthenticationSessionGateway {
