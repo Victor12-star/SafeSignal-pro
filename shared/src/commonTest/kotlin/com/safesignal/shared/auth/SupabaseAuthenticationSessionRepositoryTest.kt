@@ -58,6 +58,44 @@ class SupabaseAuthenticationSessionRepositoryTest {
         )
     }
 
+    /**
+     * A present local session is not enough to authenticate a user.
+     * A missing or blank server-verified identity must fail closed.
+     */
+    @Test
+    fun blankVerifiedUserIdReturnsSignedOut() = runTest {
+        val gateway = FakeGateway().apply {
+            sessionExists = true
+            userId = "   "
+        }
+
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+        assertEquals(AuthenticationState.SignedOut, repository.restoreSession())
+    }
+
+    /**
+     * Startup failures must not expose backend details or incorrectly sign a user in.
+     * SOS remains independent from the resulting authentication error state.
+     */
+    @Test
+    fun initializationFailureReturnsSafeError() = runTest {
+        val gateway = object : AuthenticationSessionGateway {
+            override suspend fun awaitInitialization() {
+                throw IllegalStateException("Sensitive initialization details")
+            }
+
+            override fun hasCurrentSession(): Boolean = true
+
+            override suspend fun retrieveVerifiedUserId(): String = "should-not-be-reached"
+        }
+
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+        assertEquals(
+            AuthenticationState.Error("Unable to verify your session. Please try again."),
+            repository.restoreSession()
+        )
+    }
+
     @Test
     fun verificationFailureReturnsSafeError() = runTest {
         val gateway = FakeGateway().apply {
