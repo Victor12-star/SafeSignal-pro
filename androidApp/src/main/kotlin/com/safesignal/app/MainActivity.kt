@@ -41,7 +41,6 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val backendProvider by lazy { AndroidBackendProvider() }
     private var foregroundSessionRevision by mutableIntStateOf(0)
-    private var callbackSessionRevision by mutableIntStateOf(0)
 
     override fun onResume() {
         super.onResume()
@@ -56,12 +55,13 @@ class MainActivity : ComponentActivity() {
             callbackIntent.data?.host != "auth.vikwora.com" ||
             callbackIntent.data?.path != "/login-callback"
         ) return
-        // Callback handling can arrive through onNewIntent while the activity stays resumed.
-        // Schedule a fresh server-backed session check without gating the SOS interface.
+        // Processing the callback may be asynchronous. The SDK session-status collector
+        // below triggers verification when authentication actually changes; checking
+        // immediately here could display SignedOut while login is still completing.
+        // Never let a backend failure block the SOS screen.
         runCatching {
             backendProvider.client?.handleDeeplinks(callbackIntent)
         }
-        callbackSessionRevision++
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -95,7 +95,6 @@ class MainActivity : ComponentActivity() {
                 authenticationRepository = authenticationRepository,
                 authClient = runCatching { backendProvider.client }.getOrNull(),
                 sessionRefreshRevision = foregroundSessionRevision,
-                callbackRefreshRevision = callbackSessionRevision,
             )
         }
     }
@@ -109,7 +108,6 @@ private fun SafeSignalAndroidApp(
     authenticationRepository: AuthenticationSessionRepository?,
     authClient: SupabaseClient?,
     sessionRefreshRevision: Int,
-    callbackRefreshRevision: Int,
 ) {
     var locationState by remember {
         mutableStateOf<LocationUiState>(LocationUiState.NotRequested)
@@ -137,7 +135,9 @@ private fun SafeSignalAndroidApp(
     }
 
     // Session restoration runs independently of SOS, contacts, and location startup.
-    LaunchedEffect(authenticationRepository, sessionRefreshRevision, callbackRefreshRevision, authStatusRevision) {
+    // Foreground resumes and confirmed SDK status changes both re-check the session.
+    // Keep this independent of SOS: sign-in is not a prerequisite for emergency use.
+    LaunchedEffect(authenticationRepository, sessionRefreshRevision, authStatusRevision) {
         authenticationState = AuthenticationState.Checking
         authenticationState = if (authenticationRepository == null) {
             AuthenticationState.SignedOut
