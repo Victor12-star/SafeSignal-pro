@@ -132,6 +132,29 @@ class SupabaseAuthenticationSessionRepositoryTest {
         }
     }
 
+    /**
+     * Lifecycle cancellation during startup must propagate to the caller.
+     * Swallowing it as a display error could leave obsolete authentication work running.
+     */
+    @Test
+    fun initializationCancellationIsPropagated() = runTest {
+        val gateway = object : AuthenticationSessionGateway {
+            override suspend fun awaitInitialization() {
+                throw CancellationException("Screen no longer active")
+            }
+
+            override fun hasCurrentSession(): Boolean = true
+
+            override suspend fun retrieveVerifiedUserId(): String = "unreachable-user"
+        }
+
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertFailsWith<CancellationException> {
+            repository.restoreSession()
+        }
+    }
+
     @Test
     fun sessionVerificationTimeoutReturnsSafeError() = runTest {
         val gateway = object : AuthenticationSessionGateway {
