@@ -31,13 +31,17 @@ import com.safesignal.shared.emergency.EmergencyState
 import com.safesignal.shared.emergency.TransitionEmergencyIncidentUseCase
 import com.safesignal.shared.location.LocationQualityPolicy
 import com.safesignal.shared.location.LocationUiState
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.handleDeeplinks
+import io.github.jan.supabase.auth.status.SessionStatus
 import java.util.UUID
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val backendProvider by lazy { AndroidBackendProvider() }
     private var foregroundSessionRevision by mutableIntStateOf(0)
+    private var callbackSessionRevision by mutableIntStateOf(0)
 
     override fun onResume() {
         super.onResume()
@@ -52,7 +56,12 @@ class MainActivity : ComponentActivity() {
             callbackIntent.data?.host != "auth.vikwora.com" ||
             callbackIntent.data?.path != "/login-callback"
         ) return
-        backendProvider.client?.handleDeeplinks(callbackIntent)
+        // Callback handling can arrive through onNewIntent while the activity stays resumed.
+        // Schedule a fresh server-backed session check without gating the SOS interface.
+        runCatching {
+            backendProvider.client?.handleDeeplinks(callbackIntent)
+        }
+        callbackSessionRevision++
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -84,7 +93,9 @@ class MainActivity : ComponentActivity() {
                 emergencyIncidentRepository = emergencyIncidentRepository,
                 locationClient = locationClient,
                 authenticationRepository = authenticationRepository,
+                authClient = runCatching { backendProvider.client }.getOrNull(),
                 sessionRefreshRevision = foregroundSessionRevision,
+                callbackRefreshRevision = callbackSessionRevision,
             )
         }
     }
@@ -96,7 +107,9 @@ private fun SafeSignalAndroidApp(
     emergencyIncidentRepository: EmergencyIncidentRepository,
     locationClient: AndroidLocationClient,
     authenticationRepository: AuthenticationSessionRepository?,
+    authClient: SupabaseClient?,
     sessionRefreshRevision: Int,
+    callbackRefreshRevision: Int,
 ) {
     var locationState by remember {
         mutableStateOf<LocationUiState>(LocationUiState.NotRequested)
@@ -105,12 +118,26 @@ private fun SafeSignalAndroidApp(
     var activeIncidentId by remember { mutableStateOf<String?>(null) }
     var sosStatusMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    var authStatusRevision by remember { mutableIntStateOf(0) }
+
+    // The deep-link handler can return before Supabase finishes updating its session.
+    // React to the SDK status stream so successful callbacks also trigger verification.
+    LaunchedEffect(authClient) {
+        authClient?.auth?.sessionStatus?.collect { status ->
+            if (status is SessionStatus.Authenticated ||
+                status is SessionStatus.NotAuthenticated ||
+                status is SessionStatus.RefreshFailure
+            ) {
+                authStatusRevision++
+            }
+        }
+    }
     var authenticationState by remember {
         mutableStateOf<AuthenticationState>(AuthenticationState.Checking)
     }
 
     // Session restoration runs independently of SOS, contacts, and location startup.
-    LaunchedEffect(authenticationRepository, sessionRefreshRevision) {
+    LaunchedEffect(authenticationRepository, sessionRefreshRevision, callbackRefreshRevision, authStatusRevision) {
         authenticationState = AuthenticationState.Checking
         authenticationState = if (authenticationRepository == null) {
             AuthenticationState.SignedOut
