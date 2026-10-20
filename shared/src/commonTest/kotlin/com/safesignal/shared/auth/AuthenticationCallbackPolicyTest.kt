@@ -20,6 +20,20 @@ class AuthenticationCallbackPolicyTest {
         assertFalse(AuthenticationCallbackPolicy.isAllowed("https", "auth.vikwora.com", "/login-callback/"))
     }
 
+    /**
+     * Callback codes are sensitive. Near-miss URLs must not be forwarded to the
+     * authentication SDK, even when their visible text resembles the allowlist.
+     */
+    @Test
+    fun callbackLookalikesAreRejected() {
+        assertFalse(AuthenticationCallbackPolicy.isAllowed("HTTPS", "auth.vikwora.com", "/login-callback"))
+        assertFalse(AuthenticationCallbackPolicy.isAllowed("https", "AUTH.VIKWORA.COM", "/login-callback"))
+        assertFalse(AuthenticationCallbackPolicy.isAllowed("https", "auth.vikwora.com.", "/login-callback"))
+        assertFalse(AuthenticationCallbackPolicy.isAllowed("https", "auth.vikwora.com", "//login-callback"))
+        assertFalse(AuthenticationCallbackPolicy.isAllowed("https", "auth.vikwora.com", "/login-callback/../login-callback"))
+        assertFalse(AuthenticationCallbackPolicy.isAllowed("https", "auth.vikwora.com", "/login-callback%2F"))
+    }
+
     @Test
     fun missingUriFieldsAreRejected() {
         assertFalse(AuthenticationCallbackPolicy.isAllowed(null, "auth.vikwora.com", "/login-callback"))
