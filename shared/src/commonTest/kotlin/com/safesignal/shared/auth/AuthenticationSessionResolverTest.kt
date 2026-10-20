@@ -36,6 +36,23 @@ class AuthenticationSessionResolverTest {
         assertEquals(AuthenticationState.SignedOut, state)
     }
 
+    /**
+     * Kotlin's isNullOrBlank treats tabs and line breaks as blank too.
+     * This prevents whitespace-only identities from being accepted as authenticated users.
+     */
+    @Test
+    fun whitespaceOnlyVerifiedIdentityIsSignedOut() {
+        for (value in listOf("", "\t", "\n", " \t \n ")) {
+            assertEquals(
+                AuthenticationState.SignedOut,
+                AuthenticationSessionResolver.resolve(
+                    verifiedUserId = value,
+                    sessionVerified = true,
+                ),
+            )
+        }
+    }
+
     @Test
     fun verifiedSessionWithUserReturnsSignedIn() {
         val state = AuthenticationSessionResolver.resolve(
