@@ -103,6 +103,32 @@ class SupabaseAuthenticationSessionRepositoryTest {
     }
 
     /**
+     * A temporary verification failure must never reuse the old authenticated state.
+     * Once the server responds again, a fresh restoration can recover normally.
+     */
+    @Test
+    fun transientIdentityVerificationFailureCanRecover() = runTest {
+        val gateway = FakeGateway().apply {
+            sessionExists = true
+            failure = IllegalStateException("Temporary upstream failure")
+        }
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertEquals(
+            AuthenticationState.Error("Unable to verify your session. Please try again."),
+            repository.restoreSession(),
+        )
+
+        gateway.failure = null
+        gateway.userId = "recovered-verified-user"
+        assertEquals(
+            AuthenticationState.SignedIn("recovered-verified-user"),
+            repository.restoreSession(),
+        )
+        assertEquals(2, gateway.verifiedUserLookups)
+    }
+
+    /**
      * A present local session is not enough to authenticate a user.
      * A missing or blank server-verified identity must fail closed.
      */
