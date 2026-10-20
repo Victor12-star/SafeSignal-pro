@@ -85,6 +85,24 @@ class SupabaseAuthenticationSessionRepositoryTest {
     }
 
     /**
+     * When account switching changes the server-verified user, each restoration
+     * must read the current identity instead of reusing a previously verified one.
+     */
+    @Test
+    fun accountSwitchUsesFreshVerifiedIdentity() = runTest {
+        val gateway = FakeGateway().apply {
+            sessionExists = true
+            userId = "first-user"
+        }
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertEquals(AuthenticationState.SignedIn("first-user"), repository.restoreSession())
+        gateway.userId = "second-user"
+        assertEquals(AuthenticationState.SignedIn("second-user"), repository.restoreSession())
+        assertEquals(2, gateway.verifiedUserLookups)
+    }
+
+    /**
      * A present local session is not enough to authenticate a user.
      * A missing or blank server-verified identity must fail closed.
      */
