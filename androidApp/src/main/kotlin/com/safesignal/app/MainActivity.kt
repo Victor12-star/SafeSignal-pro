@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val backendProvider by lazy { AndroidBackendProvider() }
     private var foregroundSessionRevision by mutableIntStateOf(0)
+    private var callbackSessionRevision by mutableIntStateOf(0)
 
     override fun onResume() {
         super.onResume()
@@ -52,7 +53,12 @@ class MainActivity : ComponentActivity() {
             callbackIntent.data?.host != "auth.vikwora.com" ||
             callbackIntent.data?.path != "/login-callback"
         ) return
-        backendProvider.client?.handleDeeplinks(callbackIntent)
+        // Callback handling can arrive through onNewIntent while the activity stays resumed.
+        // Schedule a fresh server-backed session check without gating the SOS interface.
+        runCatching {
+            backendProvider.client?.handleDeeplinks(callbackIntent)
+        }
+        callbackSessionRevision++
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -85,6 +91,7 @@ class MainActivity : ComponentActivity() {
                 locationClient = locationClient,
                 authenticationRepository = authenticationRepository,
                 sessionRefreshRevision = foregroundSessionRevision,
+                callbackRefreshRevision = callbackSessionRevision,
             )
         }
     }
@@ -97,6 +104,7 @@ private fun SafeSignalAndroidApp(
     locationClient: AndroidLocationClient,
     authenticationRepository: AuthenticationSessionRepository?,
     sessionRefreshRevision: Int,
+    callbackRefreshRevision: Int,
 ) {
     var locationState by remember {
         mutableStateOf<LocationUiState>(LocationUiState.NotRequested)
@@ -110,7 +118,7 @@ private fun SafeSignalAndroidApp(
     }
 
     // Session restoration runs independently of SOS, contacts, and location startup.
-    LaunchedEffect(authenticationRepository, sessionRefreshRevision) {
+    LaunchedEffect(authenticationRepository, sessionRefreshRevision, callbackRefreshRevision) {
         authenticationState = AuthenticationState.Checking
         authenticationState = if (authenticationRepository == null) {
             AuthenticationState.SignedOut
