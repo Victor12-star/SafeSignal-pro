@@ -101,6 +101,34 @@ class SupabaseAuthenticationSessionRepositoryTest {
         )
     }
 
+    /**
+     * Even checking for a cached session may fail (for example, a corrupt local store).
+     * Do not expose internal error details or attempt identity lookup after this failure.
+     */
+    @Test
+    fun sessionPresenceFailureReturnsSafeErrorWithoutIdentityLookup() = runTest {
+        var identityLookups = 0
+        val gateway = object : AuthenticationSessionGateway {
+            override suspend fun awaitInitialization() = Unit
+
+            override fun hasCurrentSession(): Boolean {
+                throw IllegalStateException("Sensitive local storage details")
+            }
+
+            override suspend fun retrieveVerifiedUserId(): String {
+                identityLookups++
+                return "must-not-be-used"
+            }
+        }
+
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+        assertEquals(
+            AuthenticationState.Error("Unable to verify your session. Please try again."),
+            repository.restoreSession(),
+        )
+        assertEquals(0, identityLookups)
+    }
+
     @Test
     fun verificationFailureReturnsSafeError() = runTest {
         val gateway = FakeGateway().apply {
