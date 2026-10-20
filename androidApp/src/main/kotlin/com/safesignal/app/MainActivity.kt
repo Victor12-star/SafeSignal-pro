@@ -31,7 +31,10 @@ import com.safesignal.shared.emergency.EmergencyState
 import com.safesignal.shared.emergency.TransitionEmergencyIncidentUseCase
 import com.safesignal.shared.location.LocationQualityPolicy
 import com.safesignal.shared.location.LocationUiState
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.handleDeeplinks
+import io.github.jan.supabase.auth.status.SessionStatus
 import java.util.UUID
 import kotlinx.coroutines.launch
 
@@ -90,6 +93,7 @@ class MainActivity : ComponentActivity() {
                 emergencyIncidentRepository = emergencyIncidentRepository,
                 locationClient = locationClient,
                 authenticationRepository = authenticationRepository,
+                authClient = runCatching { backendProvider.client }.getOrNull(),
                 sessionRefreshRevision = foregroundSessionRevision,
                 callbackRefreshRevision = callbackSessionRevision,
             )
@@ -103,6 +107,7 @@ private fun SafeSignalAndroidApp(
     emergencyIncidentRepository: EmergencyIncidentRepository,
     locationClient: AndroidLocationClient,
     authenticationRepository: AuthenticationSessionRepository?,
+    authClient: SupabaseClient?,
     sessionRefreshRevision: Int,
     callbackRefreshRevision: Int,
 ) {
@@ -113,12 +118,26 @@ private fun SafeSignalAndroidApp(
     var activeIncidentId by remember { mutableStateOf<String?>(null) }
     var sosStatusMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    var authStatusRevision by remember { mutableIntStateOf(0) }
+
+    // The deep-link handler can return before Supabase finishes updating its session.
+    // React to the SDK status stream so successful callbacks also trigger verification.
+    LaunchedEffect(authClient) {
+        authClient?.auth?.sessionStatus?.collect { status ->
+            if (status is SessionStatus.Authenticated ||
+                status is SessionStatus.NotAuthenticated ||
+                status is SessionStatus.RefreshFailure
+            ) {
+                authStatusRevision++
+            }
+        }
+    }
     var authenticationState by remember {
         mutableStateOf<AuthenticationState>(AuthenticationState.Checking)
     }
 
     // Session restoration runs independently of SOS, contacts, and location startup.
-    LaunchedEffect(authenticationRepository, sessionRefreshRevision, callbackRefreshRevision) {
+    LaunchedEffect(authenticationRepository, sessionRefreshRevision, callbackRefreshRevision, authStatusRevision) {
         authenticationState = AuthenticationState.Checking
         authenticationState = if (authenticationRepository == null) {
             AuthenticationState.SignedOut
