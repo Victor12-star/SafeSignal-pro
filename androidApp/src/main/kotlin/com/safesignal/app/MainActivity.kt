@@ -21,6 +21,7 @@ import com.safesignal.app.contacts.AndroidEncryptedTrustedContactRepository
 import com.safesignal.app.emergency.AndroidEncryptedEmergencyIncidentRepository
 import com.safesignal.app.location.AndroidLocationClient
 import com.safesignal.shared.SafeSignalApp
+import com.safesignal.shared.auth.AuthenticationCallbackPolicy
 import com.safesignal.shared.auth.AuthenticationSessionRepository
 import com.safesignal.shared.auth.AuthenticationState
 import com.safesignal.shared.auth.SupabaseAuthenticationSessionRepository
@@ -50,11 +51,11 @@ class MainActivity : ComponentActivity() {
 
     private fun handleAuthenticationCallback(callbackIntent: Intent) {
         // Never log callback URLs: they may carry credentials or one-time codes.
-        if (callbackIntent.action != Intent.ACTION_VIEW ||
-            callbackIntent.data?.scheme != "https" ||
-            callbackIntent.data?.host != "auth.vikwora.com" ||
-            callbackIntent.data?.path != "/login-callback"
-        ) return
+        if (callbackIntent.action != Intent.ACTION_VIEW) return
+        val uri = callbackIntent.data ?: return
+        // Central policy prevents the Android entry point and future platforms
+        // from silently drifting apart on which authentication URLs are trusted.
+        if (!AuthenticationCallbackPolicy.isAllowed(uri.scheme, uri.host, uri.path)) return
         // Processing the callback may be asynchronous. The SDK session-status collector
         // below triggers verification when authentication actually changes; checking
         // immediately here could display SignedOut while login is still completing.
