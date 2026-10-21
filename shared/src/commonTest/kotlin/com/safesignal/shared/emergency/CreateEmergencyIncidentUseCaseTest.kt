@@ -43,8 +43,31 @@ class CreateEmergencyIncidentUseCaseTest {
         assertEquals(listOf("save"), repository.calls)
     }
 
+    /**
+     * An acknowledged write is insufficient for emergency durability if the
+     * incident cannot be read back. Never report successful creation in this case.
+     */
+    @Test
+    fun missingReadbackAfterSaveFailsClosed() = kotlinx.coroutines.test.runTest {
+        val repository = RecordingRepository(loseSavedIncidentOnRead = true)
+        val useCase = CreateEmergencyIncidentUseCase(
+            repository = repository,
+            idProvider = { "incident-123" },
+            nowEpochMillis = { 10_000L },
+        )
+
+        assertFailsWith<IllegalStateException> {
+            useCase.execute(
+                category = EmergencyCategory.PERSONAL_DANGER,
+                recipientIds = listOf("c1"),
+            )
+        }
+        assertEquals(listOf("save", "getById"), repository.calls)
+    }
+
     private class RecordingRepository(
         private val failOnSave: Boolean = false,
+        private val loseSavedIncidentOnRead: Boolean = false,
     ) : EmergencyIncidentRepository {
         val calls = mutableListOf<String>()
         private var saved: EmergencyIncident? = null
@@ -60,7 +83,7 @@ class CreateEmergencyIncidentUseCaseTest {
 
         override suspend fun getById(id: String): EmergencyIncident? {
             calls += "getById"
-            return saved?.takeIf { it.id == id }
+            return if (loseSavedIncidentOnRead) null else saved?.takeIf { it.id == id }
         }
 
         override suspend fun delete(id: String) {
