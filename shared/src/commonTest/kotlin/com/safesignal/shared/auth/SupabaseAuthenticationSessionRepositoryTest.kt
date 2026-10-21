@@ -190,6 +190,28 @@ class SupabaseAuthenticationSessionRepositoryTest {
     }
 
     /**
+     * A session can remain locally present after its server-side identity becomes invalid.
+     * Revalidation must discard an earlier SignedIn result when the next verified ID is blank.
+     */
+    @Test
+    fun invalidatedVerifiedIdentityAfterSignInReturnsSignedOut() = runTest {
+        val gateway = FakeGateway().apply {
+            sessionExists = true
+            userId = "previously-verified-user"
+        }
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertEquals(
+            AuthenticationState.SignedIn("previously-verified-user"),
+            repository.restoreSession(),
+        )
+
+        gateway.userId = "   "
+        assertEquals(AuthenticationState.SignedOut, repository.restoreSession())
+        assertEquals(2, gateway.verifiedUserLookups)
+    }
+
+    /**
      * Startup failures must not expose backend details or incorrectly sign a user in.
      * SOS remains independent from the resulting authentication error state.
      */
