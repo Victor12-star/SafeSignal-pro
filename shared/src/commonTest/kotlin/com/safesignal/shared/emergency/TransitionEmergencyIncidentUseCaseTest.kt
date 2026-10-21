@@ -70,6 +70,22 @@ class TransitionEmergencyIncidentUseCaseTest {
         assertEquals(1, repository.saveCount)
     }
 
+    /** Sequence rollover must stop an SOS transition before it is persisted. */
+    @Test
+    fun saturatedSequenceNumberRejectsTransitionBeforeSave() = runTest {
+        val repository = FakeRepository(sampleIncident().copy(sequenceNumber = Long.MAX_VALUE))
+        val useCase = TransitionEmergencyIncidentUseCase(repository)
+
+        assertFailsWith<IllegalStateException> {
+            useCase.execute(
+                incidentId = "incident-1",
+                to = EmergencyState.PENDING_LOCATION,
+                updatedAtEpochMillis = 2_000L,
+            )
+        }
+        assertEquals(0, repository.saveCount)
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-1",
         category = EmergencyCategory.PERSONAL_DANGER,
