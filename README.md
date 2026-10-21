@@ -32,6 +32,16 @@ Shared Compose entry point:
 
 ## Important status
 
-This branch establishes the native mobile foundation only. SOS delivery, GPS tracking, SMS, push notifications, encrypted persistence, authentication, subscriptions, and backend delivery are not yet production ready.
+The repository contains native Kotlin Multiplatform and Android implementation work beyond the initial foundation, including session restoration, Android authentication callbacks, and authentication regression tests. **Passing GitHub CI does not establish production readiness or demonstrate that real emergency delivery works.**
 
-Simulated behavior from the web prototype is not accepted as production evidence.
+Authentication is **partially implemented but not release-verified**: server-verified session handling and a strict callback allowlist have automated coverage, while browser-to-app sign-in, Android App Links, offline behavior, account changes, and SOS independence still require documented physical-device testing.
+
+Before claiming any emergency or authentication feature is safe for release, consult:
+
+- [Implementation status and evidence](docs/13_real_implementation_status.md) — historical baseline plus dated authentication checkpoint.
+- [Authentication device acceptance checklist](docs/14_auth_device_acceptance.md) — test account, callback, lifecycle, offline, and SOS release gates.
+- [Testing matrix and milestones](docs/10_testing_matrix_and_milestones.md) — broader release verification plan.
+
+SOS delivery, GPS tracking, SMS, push notifications, encrypted persistence, subscriptions, and backend delivery **must be assessed individually** against current source code and real-world evidence. This README does not certify them as ready.
+
+Simulated behavior from the React/Vite prototype is not accepted as production evidence.
