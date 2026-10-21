@@ -50,6 +50,23 @@ class EmergencyStateMachineTest {
         }
     }
 
+    /** A completed or cancelled SOS incident must never be revived by a later event. */
+    @Test
+    fun terminalStatesRejectEveryDifferentState() {
+        val allStates = EmergencyState.entries
+        allStates.filter { it.isTerminal }.forEach { terminal ->
+            allStates.filter { it != terminal }.forEach { destination ->
+                assertFalse(
+                    EmergencyStateMachine.canTransition(terminal, destination),
+                    "Terminal state $terminal unexpectedly allows $destination",
+                )
+                assertFailsWith<InvalidEmergencyTransitionException> {
+                    EmergencyStateMachine.transition(terminal, destination)
+                }
+            }
+        }
+    }
+
     @Test
     fun repeatedStateIsIdempotent() {
         assertEquals(
