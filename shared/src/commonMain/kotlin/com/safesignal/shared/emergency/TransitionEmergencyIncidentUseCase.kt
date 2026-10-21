@@ -18,6 +18,8 @@ class TransitionEmergencyIncidentUseCase(
             sequenceNumber = if (nextState == current.state) {
                 current.sequenceNumber
             } else {
+                // Do not wrap a saturated SOS sequence number to a negative value.
+                check(current.sequenceNumber < Long.MAX_VALUE) { "Emergency incident sequence number exhausted" }
                 current.sequenceNumber + 1L
             },
         )
