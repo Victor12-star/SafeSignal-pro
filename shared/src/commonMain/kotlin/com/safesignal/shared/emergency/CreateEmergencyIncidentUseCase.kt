@@ -21,7 +21,12 @@ class CreateEmergencyIncidentUseCase(
 
         repository.save(incident)
 
-        return repository.getById(incident.id)
+        val persisted = repository.getById(incident.id)
             ?: error("Emergency incident was not durably saved")
+
+        // A successful lookup alone does not prove the stored SOS details survived.
+        // Never report a different category, recipient list, or state as a saved incident.
+        check(persisted == incident) { "Emergency incident readback did not match saved record" }
+        return persisted
     }
 }
