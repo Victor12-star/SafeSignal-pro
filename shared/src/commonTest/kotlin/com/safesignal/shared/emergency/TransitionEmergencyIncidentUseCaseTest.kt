@@ -86,6 +86,22 @@ class TransitionEmergencyIncidentUseCaseTest {
         assertEquals(0, repository.saveCount)
     }
 
+    /** An out-of-order timestamp must be rejected before any state is saved. */
+    @Test
+    fun olderTransitionTimestampIsRejectedBeforeSave() = runTest {
+        val repository = FakeRepository(sampleIncident().copy(updatedAtEpochMillis = 3_000L))
+        val useCase = TransitionEmergencyIncidentUseCase(repository)
+
+        assertFailsWith<IllegalArgumentException> {
+            useCase.execute(
+                incidentId = "incident-1",
+                to = EmergencyState.PENDING_LOCATION,
+                updatedAtEpochMillis = 2_000L,
+            )
+        }
+        assertEquals(0, repository.saveCount)
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-1",
         category = EmergencyCategory.PERSONAL_DANGER,
