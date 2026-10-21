@@ -11,6 +11,11 @@ class TransitionEmergencyIncidentUseCase(
         val current = repository.getById(incidentId)
             ?: error("Emergency incident not found")
 
+        // A later SOS transition must not move the durable incident timeline backwards.
+        require(updatedAtEpochMillis >= current.updatedAtEpochMillis) {
+            "Emergency incident transition timestamp predates the current update"
+        }
+
         val nextState = EmergencyStateMachine.transition(current.state, to)
         val updated = current.copy(
             state = nextState,
