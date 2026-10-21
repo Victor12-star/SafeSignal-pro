@@ -120,6 +120,23 @@ class TransitionEmergencyIncidentUseCaseTest {
         assertEquals(1, repository.saveCount)
     }
 
+    /** A repeated state is idempotent even when its sequence is already saturated. */
+    @Test
+    fun repeatedStateDoesNotOverflowSaturatedSequence() = runTest {
+        val repository = FakeRepository(sampleIncident().copy(sequenceNumber = Long.MAX_VALUE))
+        val useCase = TransitionEmergencyIncidentUseCase(repository)
+
+        val result = useCase.execute(
+            incidentId = "incident-1",
+            to = EmergencyState.CREATED,
+            updatedAtEpochMillis = 1_000L,
+        )
+
+        assertEquals(EmergencyState.CREATED, result.state)
+        assertEquals(Long.MAX_VALUE, result.sequenceNumber)
+        assertEquals(1, repository.saveCount)
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-1",
         category = EmergencyCategory.PERSONAL_DANGER,
