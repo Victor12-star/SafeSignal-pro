@@ -124,6 +124,31 @@ class SupabaseAuthenticationSessionRepositoryTest {
     }
 
     /**
+     * Foreground revalidation cannot reuse a previously verified identity if
+     * the next server verification fails. The caller must receive a safe error.
+     */
+    @Test
+    fun verificationFailureAfterSignedInDoesNotReusePreviousIdentity() = runTest {
+        val gateway = FakeGateway().apply {
+            sessionExists = true
+            userId = "previously-verified-user"
+        }
+        val repository = SupabaseAuthenticationSessionRepository(gateway)
+
+        assertEquals(
+            AuthenticationState.SignedIn("previously-verified-user"),
+            repository.restoreSession(),
+        )
+
+        gateway.failure = IllegalStateException("Sensitive server details")
+        assertEquals(
+            AuthenticationState.Error("Unable to verify your session. Please try again."),
+            repository.restoreSession(),
+        )
+        assertEquals(2, gateway.verifiedUserLookups)
+    }
+
+    /**
      * A temporary verification failure must never reuse the old authenticated state.
      * Once the server responds again, a fresh restoration can recover normally.
      */
