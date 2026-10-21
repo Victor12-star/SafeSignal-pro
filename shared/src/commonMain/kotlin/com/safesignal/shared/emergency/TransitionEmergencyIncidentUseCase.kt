@@ -24,7 +24,12 @@ class TransitionEmergencyIncidentUseCase(
 
         repository.save(updated)
 
-        return repository.getById(updated.id)
+        val persisted = repository.getById(updated.id)
             ?: error("Emergency incident transition was not durably saved")
+
+        // A record may exist but contain an older or corrupted SOS transition.
+        // Confirm the exact state, sequence and incident details before reporting success.
+        check(persisted == updated) { "Emergency incident transition readback did not match saved record" }
+        return persisted
     }
 }

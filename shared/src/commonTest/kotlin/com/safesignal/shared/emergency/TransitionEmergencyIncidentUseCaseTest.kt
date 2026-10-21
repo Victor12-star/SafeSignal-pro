@@ -38,6 +38,22 @@ class TransitionEmergencyIncidentUseCaseTest {
         assertEquals(0, repository.saveCount)
     }
 
+    /** A stale readback must not be mistaken for a completed SOS transition. */
+    @Test
+    fun staleReadbackAfterTransitionFailsClosed() = runTest {
+        val repository = FakeRepository(sampleIncident(), returnStaleReadbackAfterSave = true)
+        val useCase = TransitionEmergencyIncidentUseCase(repository)
+
+        assertFailsWith<IllegalStateException> {
+            useCase.execute(
+                incidentId = "incident-1",
+                to = EmergencyState.PENDING_LOCATION,
+                updatedAtEpochMillis = 2_000L,
+            )
+        }
+        assertEquals(1, repository.saveCount)
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-1",
         category = EmergencyCategory.PERSONAL_DANGER,
@@ -49,8 +65,10 @@ class TransitionEmergencyIncidentUseCaseTest {
 
     private class FakeRepository(
         initial: EmergencyIncident,
+        private val returnStaleReadbackAfterSave: Boolean = false,
     ) : EmergencyIncidentRepository {
         private var incident: EmergencyIncident? = initial
+        private val originalIncident: EmergencyIncident = initial
         var saveCount = 0
 
         override suspend fun getAll(): List<EmergencyIncident> =
@@ -62,7 +80,8 @@ class TransitionEmergencyIncidentUseCaseTest {
         }
 
         override suspend fun getById(id: String): EmergencyIncident? =
-            incident?.takeIf { it.id == id }
+            (if (returnStaleReadbackAfterSave && saveCount > 0) originalIncident else incident)
+                ?.takeIf { it.id == id }
 
         override suspend fun delete(id: String) {
             incident = null
