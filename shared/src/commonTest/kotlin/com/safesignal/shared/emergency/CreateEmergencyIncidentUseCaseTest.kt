@@ -65,9 +65,29 @@ class CreateEmergencyIncidentUseCaseTest {
         assertEquals(listOf("save", "getById"), repository.calls)
     }
 
+    /** A readback with changed emergency recipients must not be accepted. */
+    @Test
+    fun corruptedReadbackAfterSaveFailsClosed() = kotlinx.coroutines.test.runTest {
+        val repository = RecordingRepository(corruptSavedRecipientsOnRead = true)
+        val useCase = CreateEmergencyIncidentUseCase(
+            repository = repository,
+            idProvider = { "incident-123" },
+            nowEpochMillis = { 10_000L },
+        )
+
+        assertFailsWith<IllegalStateException> {
+            useCase.execute(
+                category = EmergencyCategory.PERSONAL_DANGER,
+                recipientIds = listOf("c1", "c2"),
+            )
+        }
+        assertEquals(listOf("save", "getById"), repository.calls)
+    }
+
     private class RecordingRepository(
         private val failOnSave: Boolean = false,
         private val loseSavedIncidentOnRead: Boolean = false,
+        private val corruptSavedRecipientsOnRead: Boolean = false,
     ) : EmergencyIncidentRepository {
         val calls = mutableListOf<String>()
         private var saved: EmergencyIncident? = null
@@ -83,7 +103,11 @@ class CreateEmergencyIncidentUseCaseTest {
 
         override suspend fun getById(id: String): EmergencyIncident? {
             calls += "getById"
-            return if (loseSavedIncidentOnRead) null else saved?.takeIf { it.id == id }
+            if (loseSavedIncidentOnRead) return null
+            val incident = saved?.takeIf { it.id == id } ?: return null
+            return if (corruptSavedRecipientsOnRead) {
+                incident.copy(recipientIds = listOf("unintended-recipient"))
+            } else incident
         }
 
         override suspend fun delete(id: String) {
