@@ -54,6 +54,22 @@ class TransitionEmergencyIncidentUseCaseTest {
         assertEquals(1, repository.saveCount)
     }
 
+    /** A transition cannot be confirmed if its newly stored incident disappears. */
+    @Test
+    fun missingReadbackAfterTransitionFailsClosed() = runTest {
+        val repository = FakeRepository(sampleIncident(), loseReadbackAfterSave = true)
+        val useCase = TransitionEmergencyIncidentUseCase(repository)
+
+        assertFailsWith<IllegalStateException> {
+            useCase.execute(
+                incidentId = "incident-1",
+                to = EmergencyState.PENDING_LOCATION,
+                updatedAtEpochMillis = 2_000L,
+            )
+        }
+        assertEquals(1, repository.saveCount)
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-1",
         category = EmergencyCategory.PERSONAL_DANGER,
@@ -66,6 +82,7 @@ class TransitionEmergencyIncidentUseCaseTest {
     private class FakeRepository(
         initial: EmergencyIncident,
         private val returnStaleReadbackAfterSave: Boolean = false,
+        private val loseReadbackAfterSave: Boolean = false,
     ) : EmergencyIncidentRepository {
         private var incident: EmergencyIncident? = initial
         private val originalIncident: EmergencyIncident = initial
@@ -80,8 +97,9 @@ class TransitionEmergencyIncidentUseCaseTest {
         }
 
         override suspend fun getById(id: String): EmergencyIncident? =
-            (if (returnStaleReadbackAfterSave && saveCount > 0) originalIncident else incident)
-                ?.takeIf { it.id == id }
+            (if (loseReadbackAfterSave && saveCount > 0) null
+             else if (returnStaleReadbackAfterSave && saveCount > 0) originalIncident
+             else incident)?.takeIf { it.id == id }
 
         override suspend fun delete(id: String) {
             incident = null
