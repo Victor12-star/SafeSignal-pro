@@ -102,6 +102,24 @@ class TransitionEmergencyIncidentUseCaseTest {
         assertEquals(0, repository.saveCount)
     }
 
+    /** Clock resolution can give successive SOS updates the same timestamp. */
+    @Test
+    fun equalTransitionTimestampIsAllowedAndSequenceAdvances() = runTest {
+        val repository = FakeRepository(sampleIncident())
+        val useCase = TransitionEmergencyIncidentUseCase(repository)
+
+        val result = useCase.execute(
+            incidentId = "incident-1",
+            to = EmergencyState.PENDING_LOCATION,
+            updatedAtEpochMillis = 1_000L,
+        )
+
+        assertEquals(EmergencyState.PENDING_LOCATION, result.state)
+        assertEquals(1_000L, result.updatedAtEpochMillis)
+        assertEquals(1L, result.sequenceNumber)
+        assertEquals(1, repository.saveCount)
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-1",
         category = EmergencyCategory.PERSONAL_DANGER,
