@@ -95,6 +95,24 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** A partially written encrypted incident file must never look like an empty store. */
+    @Test
+    fun truncatedCiphertextIsRejectedWithoutErasingOriginalBytes() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val original = file.readBytes()
+            val truncated = original.copyOf(original.size - 1)
+            file.writeBytes(truncated)
+
+            assertFails { store.readAll() }
+            assertEquals(truncated.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
