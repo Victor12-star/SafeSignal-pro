@@ -62,7 +62,7 @@ class CreateEmergencyIncidentUseCaseTest {
                 recipientIds = listOf("c1"),
             )
         }
-        assertEquals(listOf("save", "getById"), repository.calls)
+        assertEquals(listOf("getById", "save", "getById"), repository.calls)
     }
 
     /** A readback with changed emergency recipients must not be accepted. */
@@ -81,7 +81,7 @@ class CreateEmergencyIncidentUseCaseTest {
                 recipientIds = listOf("c1", "c2"),
             )
         }
-        assertEquals(listOf("save", "getById"), repository.calls)
+        assertEquals(listOf("getById", "save", "getById"), repository.calls)
     }
 
     /** A colliding ID must never overwrite an earlier emergency incident. */
