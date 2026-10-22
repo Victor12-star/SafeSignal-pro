@@ -19,7 +19,7 @@ class CreateEmergencyIncidentUseCaseTest {
             recipientIds = listOf("c1", "c1", "c2"),
         )
 
-        assertEquals(listOf("save", "getById"), repository.calls)
+        assertEquals(listOf("getById", "save", "getById"), repository.calls)
         assertEquals(listOf("c1", "c2"), incident.recipientIds)
         assertEquals(EmergencyState.CREATED, incident.state)
     }
@@ -40,7 +40,7 @@ class CreateEmergencyIncidentUseCaseTest {
             )
         }
 
-        assertEquals(listOf("save"), repository.calls)
+        assertEquals(listOf("getById", "save"), repository.calls)
     }
 
     /**
@@ -84,13 +84,39 @@ class CreateEmergencyIncidentUseCaseTest {
         assertEquals(listOf("save", "getById"), repository.calls)
     }
 
+    /** A colliding ID must never overwrite an earlier emergency incident. */
+    @Test
+    fun duplicateIncidentIdIsRejectedBeforeSave() = kotlinx.coroutines.test.runTest {
+        val existing = EmergencyIncident(
+            id = "incident-123",
+            category = EmergencyCategory.MEDICAL,
+            state = EmergencyState.CREATED,
+            recipientIds = listOf("original-contact"),
+            createdAtEpochMillis = 5_000L,
+            updatedAtEpochMillis = 5_000L,
+        )
+        val repository = RecordingRepository(initial = existing)
+        val useCase = CreateEmergencyIncidentUseCase(
+            repository = repository,
+            idProvider = { "incident-123" },
+            nowEpochMillis = { 10_000L },
+        )
+
+        assertFailsWith<IllegalStateException> {
+            useCase.execute(EmergencyCategory.PERSONAL_DANGER, listOf("new-contact"))
+        }
+        assertEquals(listOf("getById"), repository.calls)
+        assertEquals(existing, repository.getById(existing.id))
+    }
+
     private class RecordingRepository(
         private val failOnSave: Boolean = false,
+        initial: EmergencyIncident? = null,
         private val loseSavedIncidentOnRead: Boolean = false,
         private val corruptSavedRecipientsOnRead: Boolean = false,
     ) : EmergencyIncidentRepository {
         val calls = mutableListOf<String>()
-        private var saved: EmergencyIncident? = null
+        private var saved: EmergencyIncident? = initial
 
         override suspend fun getAll(): List<EmergencyIncident> =
             listOfNotNull(saved)
