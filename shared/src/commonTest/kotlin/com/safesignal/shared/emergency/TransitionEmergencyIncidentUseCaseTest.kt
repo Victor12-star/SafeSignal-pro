@@ -137,6 +137,23 @@ class TransitionEmergencyIncidentUseCaseTest {
         assertEquals(1, repository.saveCount)
     }
 
+    /** Never create or mutate an unrelated SOS incident when an unknown ID is supplied. */
+    @Test
+    fun unknownIncidentIdRejectsTransitionWithoutSaving() = runTest {
+        val repository = FakeRepository(sampleIncident())
+        val useCase = TransitionEmergencyIncidentUseCase(repository)
+
+        assertFailsWith<IllegalStateException> {
+            useCase.execute(
+                incidentId = "different-incident",
+                to = EmergencyState.PENDING_LOCATION,
+                updatedAtEpochMillis = 2_000L,
+            )
+        }
+        assertEquals(0, repository.saveCount)
+        assertEquals(EmergencyState.CREATED, repository.getById("incident-1")?.state)
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-1",
         category = EmergencyCategory.PERSONAL_DANGER,
