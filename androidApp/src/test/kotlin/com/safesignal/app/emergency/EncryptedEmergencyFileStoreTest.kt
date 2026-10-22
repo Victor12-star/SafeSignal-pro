@@ -131,6 +131,25 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** A tampered version byte must not cause silent acceptance or data loss. */
+    @Test
+    fun unsupportedEncryptedStoreVersionIsRejectedWithoutChangingFile() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val corrupted = file.readBytes()
+            // Four magic bytes precede the format version byte.
+            corrupted[4] = 0x7f.toByte()
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
