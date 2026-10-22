@@ -57,6 +57,27 @@ class EncryptedEmergencyFileStoreTest {
         file.parentFile?.deleteRecursively()
     }
 
+    /** An incorrect encryption key must never expose or silently reset emergency records. */
+    @Test
+    fun incorrectEncryptionKeyCannotReadOrChangeSavedIncidents() {
+        val file = tempStoreFile()
+        try {
+            val originalStore = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            val expected = listOf(sampleIncident())
+            originalStore.writeAll(expected)
+            val originalBytes = file.readBytes()
+
+            val wrongKey = SecretKeySpec(ByteArray(32) { 8 }, "AES")
+            val wrongKeyStore = EncryptedEmergencyFileStore(file = file, keyProvider = { wrongKey })
+            assertFails { wrongKeyStore.readAll() }
+
+            assertEquals(originalBytes.toList(), file.readBytes().toList())
+            assertEquals(expected, originalStore.readAll())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
