@@ -113,6 +113,24 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** An invalid file header must not be accepted as an empty or valid SOS store. */
+    @Test
+    fun corruptedHeaderIsRejectedWithoutChangingStoredBytes() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val corrupted = file.readBytes()
+            corrupted[0] = (corrupted[0].toInt() xor 0x01).toByte()
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
