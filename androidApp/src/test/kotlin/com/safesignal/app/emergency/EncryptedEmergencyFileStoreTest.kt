@@ -78,6 +78,23 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** Unexpected bytes after an encrypted SOS record indicate tampering or corruption. */
+    @Test
+    fun trailingBytesAreRejectedWithoutChangingEncryptedStore() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val corrupted = file.readBytes() + byteArrayOf(0x42)
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
