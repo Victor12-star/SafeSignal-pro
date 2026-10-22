@@ -19,6 +19,8 @@ class CreateEmergencyIncidentUseCase(
             updatedAtEpochMillis = now,
         )
 
+        // Never overwrite an existing emergency record if an ID generator collides.
+        check(repository.getById(incident.id) == null) { "Emergency incident ID already exists" }
         repository.save(incident)
 
         val persisted = repository.getById(incident.id)
