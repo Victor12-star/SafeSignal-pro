@@ -36,7 +36,7 @@ internal class EncryptedEmergencyFileStore(
             input.readFully(iv)
 
             val cipherSize = input.readInt()
-            require(cipherSize in 1..MAX_CIPHERTEXT_BYTES) { "Invalid emergency store size" }
+            require(cipherSize in (GCM_TAG_BITS / 8)..MAX_CIPHERTEXT_BYTES) { "Invalid emergency store size" }
             val ciphertext = ByteArray(cipherSize)
             input.readFully(ciphertext)
             require(input.read() == -1) { "Unexpected emergency store data" }
