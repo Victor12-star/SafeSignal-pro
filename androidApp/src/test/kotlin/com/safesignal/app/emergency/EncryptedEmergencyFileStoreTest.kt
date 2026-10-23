@@ -192,6 +192,30 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** Oversized ciphertext metadata must fail before allocating emergency payload memory. */
+    @Test
+    fun oversizedCiphertextLengthIsRejectedWithoutChangingFile() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val corrupted = file.readBytes()
+            val ivLength = corrupted[5].toInt() and 0xff
+            val sizeOffset = 6 + ivLength
+            // 0x7fffffff is larger than the store's permitted 4 MiB ciphertext limit.
+            corrupted[sizeOffset] = 0x7f.toByte()
+            corrupted[sizeOffset + 1] = 0xff.toByte()
+            corrupted[sizeOffset + 2] = 0xff.toByte()
+            corrupted[sizeOffset + 3] = 0xff.toByte()
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
