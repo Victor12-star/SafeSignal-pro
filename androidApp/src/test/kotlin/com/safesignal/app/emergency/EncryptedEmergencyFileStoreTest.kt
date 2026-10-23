@@ -150,6 +150,25 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** Invalid IV lengths must be rejected before attempting SOS record decryption. */
+    @Test
+    fun malformedInitializationVectorLengthIsRejectedWithoutChangingFile() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val corrupted = file.readBytes()
+            // Header layout: four magic bytes, one version byte, then one IV-length byte.
+            corrupted[5] = 0x01.toByte()
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
