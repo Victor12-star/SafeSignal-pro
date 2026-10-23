@@ -169,6 +169,29 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** Invalid ciphertext lengths must fail before allocating or decrypting SOS data. */
+    @Test
+    fun zeroCiphertextLengthIsRejectedWithoutChangingFile() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val corrupted = file.readBytes()
+            val ivLength = corrupted[5].toInt() and 0xff
+            val ciphertextLengthOffset = 6 + ivLength
+            // DataInputStream reads this four-byte field in big-endian order.
+            for (index in ciphertextLengthOffset until ciphertextLengthOffset + 4) {
+                corrupted[index] = 0
+            }
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
