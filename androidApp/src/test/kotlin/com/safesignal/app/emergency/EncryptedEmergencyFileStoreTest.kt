@@ -216,6 +216,29 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** Negative ciphertext length metadata must fail without touching saved SOS bytes. */
+    @Test
+    fun negativeCiphertextLengthIsRejectedWithoutChangingFile() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val corrupted = file.readBytes()
+            val ivLength = corrupted[5].toInt() and 0xff
+            val sizeOffset = 6 + ivLength
+            // -1 in a signed, big-endian four-byte length field.
+            for (index in sizeOffset until sizeOffset + 4) {
+                corrupted[index] = 0xff.toByte()
+            }
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
