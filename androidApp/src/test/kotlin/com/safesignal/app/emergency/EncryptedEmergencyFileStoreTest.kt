@@ -239,6 +239,32 @@ class EncryptedEmergencyFileStoreTest {
         }
     }
 
+    /** AES-GCM records shorter than their 16-byte authentication tag are invalid. */
+    @Test
+    fun ciphertextTooShortForAuthenticationTagIsRejectedWithoutChangingFile() {
+        val file = tempStoreFile()
+        try {
+            val store = EncryptedEmergencyFileStore(file = file, keyProvider = { key })
+            store.writeAll(listOf(sampleIncident()))
+            val original = file.readBytes()
+            val ivLength = original[5].toInt() and 0xff
+            val sizeOffset = 6 + ivLength
+            val truncatedLength = 15
+            // Preserve valid framing but provide less than the mandatory GCM tag.
+            val corrupted = original.copyOf(sizeOffset + 4 + truncatedLength)
+            corrupted[sizeOffset] = 0
+            corrupted[sizeOffset + 1] = 0
+            corrupted[sizeOffset + 2] = 0
+            corrupted[sizeOffset + 3] = truncatedLength.toByte()
+            file.writeBytes(corrupted)
+
+            assertFails { store.readAll() }
+            assertEquals(corrupted.toList(), file.readBytes().toList())
+        } finally {
+            file.parentFile?.deleteRecursively()
+        }
+    }
+
     private fun sampleIncident() = EmergencyIncident(
         id = "incident-123",
         category = EmergencyCategory.MEDICAL,
