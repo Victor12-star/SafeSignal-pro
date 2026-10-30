@@ -32,4 +32,33 @@ class JourneySessionRepositoryTest {
         val repo = InMemoryJourneySessionRepository()
         assertFailsWith<IllegalArgumentException> { repo.save(session().copy(trustedContactIds = emptyList())) }
     }
+    @Test fun savedDraftCanBeRecoveredThenDeletedByOwner() = runTest {
+        val repo = InMemoryJourneySessionRepository()
+        repo.save(session())
+        assertEquals(listOf(session()), repo.getAllForOwner("owner-1"))
+        repo.delete("owner-1", "journey-1")
+        assertNull(repo.getById("owner-1", "journey-1"))
+        assertEquals(emptyList(), repo.getAllForOwner("owner-1"))
+        assertFailsWith<JourneyNotFoundException> { repo.delete("owner-1", "journey-1") }
+    }
+
+    @Test fun anotherOwnerCannotRecoverOrDeleteSavedDraft() = runTest {
+        val repo = InMemoryJourneySessionRepository()
+        repo.save(session())
+        assertEquals(emptyList(), repo.getAllForOwner("owner-2"))
+        assertNull(repo.getById("owner-2", "journey-1"))
+        assertFailsWith<JourneyNotFoundException> { repo.delete("owner-2", "journey-1") }
+        assertEquals(session(), repo.getById("owner-1", "journey-1"))
+    }
+
+    @Test fun deletingOneDraftPreservesOtherOwnersAndOtherDrafts() = runTest {
+        val repo = InMemoryJourneySessionRepository()
+        repo.save(session())
+        repo.save(session().copy(id = "journey-2"))
+        repo.save(session().copy(id = "journey-3", ownerId = "owner-2"))
+        repo.delete("owner-1", "journey-1")
+        assertEquals(listOf("journey-2"), repo.getAllForOwner("owner-1").map { it.id })
+        assertEquals(listOf("journey-3"), repo.getAllForOwner("owner-2").map { it.id })
+    }
+
 }
