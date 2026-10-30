@@ -38,6 +38,8 @@ fun SafeJourneyScreen(
     savedDrafts: List<JourneySession> = emptyList(),
     draftsLoading: Boolean = false,
     onRefreshDrafts: () -> Unit = {},
+    deletingDraftId: String? = null,
+    onDeleteDraft: (String) -> Unit = {},
 ) {
     val validation = JourneyDraftValidator.validate(destination, durationMinutes)
     Column(
@@ -119,6 +121,11 @@ fun SafeJourneyScreen(
                 } else {
                     savedDrafts.filter { it.status == JourneyStatus.DRAFT }.forEach { draft ->
                         Text(draft.destination + " — saved draft only (tracking off)", color = SafeSignalColors.TextPrimary)
+                        Button(
+                            onClick = { onDeleteDraft(draft.id) },
+                            enabled = canSaveDraft && !draftsLoading && deletingDraftId == null,
+                            colors = ButtonDefaults.buttonColors(backgroundColor = SafeSignalColors.PrimaryAction, contentColor = Color.White),
+                        ) { Text(if (deletingDraftId == draft.id) "Deleting…" else "Delete draft") }
                     }
                 }
             }

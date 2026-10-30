@@ -49,6 +49,7 @@ fun SafeSignalApp(
     authenticationState: AuthenticationState = AuthenticationState.SignedOut,
     onSaveJourneyDraft: suspend (String, String, List<String>, String) -> Unit = { _, _, _, _ -> },
     onLoadJourneyDrafts: suspend (String) -> List<JourneySession> = { emptyList() },
+    onDeleteJourneyDraft: suspend (String, String) -> Unit = { _, _ -> },
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
     var journeyDestination by remember { mutableStateOf("") }
@@ -56,6 +57,7 @@ fun SafeSignalApp(
     var journeySaving by remember { mutableStateOf(false) }
     var journeyDraftMessage by remember { mutableStateOf<String?>(null) }
     var draftsLoading by remember { mutableStateOf(false) }
+    var deletingDraftId by remember { mutableStateOf<String?>(null) }
     var savedDrafts by remember { mutableStateOf<List<JourneySession>>(emptyList()) }
     val repository = remember(trustedContactRepository) {
         trustedContactRepository ?: InMemoryTrustedContactRepository()
@@ -131,6 +133,26 @@ fun SafeSignalApp(
                     draftStatusMessage = journeyDraftMessage,
                     savedDrafts = savedDrafts,
                     draftsLoading = draftsLoading,
+                    deletingDraftId = deletingDraftId,
+                    onDeleteDraft = { draftId ->
+                        val owner = currentJourneyOwner
+                        if (owner != null && deletingDraftId == null &&
+                            savedDrafts.any { it.id == draftId && it.ownerId == owner && it.status == JourneyStatus.DRAFT }
+                        ) {
+                            deletingDraftId = draftId
+                            scope.launch {
+                                runCatching { onDeleteJourneyDraft(owner, draftId) }
+                                    .onSuccess {
+                                        if ((authenticationState as? AuthenticationState.SignedIn)?.userId == owner) {
+                                            savedDrafts = savedDrafts.filterNot { it.id == draftId && it.ownerId == owner }
+                                            journeyDraftMessage = "Draft deleted from encrypted storage."
+                                        }
+                                    }
+                                    .onFailure { journeyDraftMessage = "Could not delete draft securely. Please retry." }
+                                deletingDraftId = null
+                            }
+                        }
+                    },
                     onRefreshDrafts = {
                         val owner = currentJourneyOwner
                         if (owner != null && !draftsLoading) {

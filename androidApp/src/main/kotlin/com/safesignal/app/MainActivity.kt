@@ -312,6 +312,16 @@ private fun SafeSignalAndroidApp(
         sosActivated = activeIncidentId != null,
         sosStatusMessage = sosStatusMessage,
         authenticationState = authenticationState,
+        onDeleteJourneyDraft = { ownerId, draftId ->
+            val currentOwner = (authenticationState as? AuthenticationState.SignedIn)?.userId
+            require(!currentOwner.isNullOrBlank() && currentOwner == ownerId) {
+                "Authenticated journey owner required"
+            }
+            val draft = journeyRepository.getById(currentOwner, draftId)
+                ?: throw IllegalArgumentException("Draft not found for signed-in owner")
+            require(draft.status == JourneyStatus.DRAFT) { "Only drafts can be deleted here" }
+            journeyRepository.delete(currentOwner, draftId)
+        },
         onLoadJourneyDrafts = { ownerId ->
             val currentOwner = (authenticationState as? AuthenticationState.SignedIn)?.userId
             require(!currentOwner.isNullOrBlank() && currentOwner == ownerId) {
