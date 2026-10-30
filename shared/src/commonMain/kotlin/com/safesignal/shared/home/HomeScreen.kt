@@ -389,8 +389,8 @@ private fun CategoryChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val borderColor = if (selected) SafeSignalColors.PrimaryAction else Color(0xFF34465E)
-    val background = if (selected) Color(0xFF193B63) else SafeSignalColors.CardSurface
+    val borderColor = if (selected) SafeSignalColors.PrimaryAction else Color(0xFFCBD5E1)
+    val background = if (selected) Color(0xFFDCEBFF) else SafeSignalColors.CardSurface
 
     Surface(
         modifier = modifier
@@ -407,7 +407,7 @@ private fun CategoryChip(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = text,
-                color = if (selected) Color.White else SafeSignalColors.TextSecondary,
+                color = if (selected) SafeSignalColors.TextPrimary else SafeSignalColors.TextSecondary,
                 fontSize = 12.sp,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             )
