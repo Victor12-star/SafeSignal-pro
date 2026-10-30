@@ -29,6 +29,8 @@ import com.safesignal.shared.design.SafeSignalColors
 import com.safesignal.shared.design.SafeSignalTheme
 import com.safesignal.shared.emergency.EmergencyCategory
 import com.safesignal.shared.home.HomeScreen
+import com.safesignal.shared.journey.JourneySession
+import com.safesignal.shared.journey.JourneyStatus
 import com.safesignal.shared.journey.SafeJourneyScreen
 import com.safesignal.shared.navigation.AppDestination
 import com.safesignal.shared.navigation.AppShell
@@ -46,12 +48,15 @@ fun SafeSignalApp(
     sosStatusMessage: String? = null,
     authenticationState: AuthenticationState = AuthenticationState.SignedOut,
     onSaveJourneyDraft: suspend (String, String, List<String>, String) -> Unit = { _, _, _, _ -> },
+    onLoadJourneyDrafts: suspend (String) -> List<JourneySession> = { emptyList() },
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
     var journeyDestination by remember { mutableStateOf("") }
     var journeyDuration by remember { mutableStateOf("") }
     var journeySaving by remember { mutableStateOf(false) }
     var journeyDraftMessage by remember { mutableStateOf<String?>(null) }
+    var draftsLoading by remember { mutableStateOf(false) }
+    var savedDrafts by remember { mutableStateOf<List<JourneySession>>(emptyList()) }
     val repository = remember(trustedContactRepository) {
         trustedContactRepository ?: InMemoryTrustedContactRepository()
     }
@@ -71,6 +76,21 @@ fun SafeSignalApp(
         }.onFailure {
             contactsLoaded = true
             storageMessage = "Trusted contacts could not be loaded securely. Try again before relying on SOS."
+        }
+    }
+
+    val currentJourneyOwner = (authenticationState as? AuthenticationState.SignedIn)?.userId
+    LaunchedEffect(currentJourneyOwner) {
+        savedDrafts = emptyList()
+        journeyDraftMessage = null
+        if (currentJourneyOwner != null) {
+            draftsLoading = true
+            runCatching { onLoadJourneyDrafts(currentJourneyOwner) }
+                .onSuccess { loaded ->
+                    savedDrafts = loaded.filter { it.ownerId == currentJourneyOwner && it.status == JourneyStatus.DRAFT }
+                }
+                .onFailure { journeyDraftMessage = "Could not load encrypted drafts. Please retry." }
+            draftsLoading = false
         }
     }
 
@@ -109,6 +129,25 @@ fun SafeSignalApp(
                     canSaveDraft = authenticationState is AuthenticationState.SignedIn && contactsLoaded && storageMessage == null,
                     draftSaving = journeySaving,
                     draftStatusMessage = journeyDraftMessage,
+                    savedDrafts = savedDrafts,
+                    draftsLoading = draftsLoading,
+                    onRefreshDrafts = {
+                        val owner = currentJourneyOwner
+                        if (owner != null && !draftsLoading) {
+                            draftsLoading = true
+                            scope.launch {
+                                runCatching { onLoadJourneyDrafts(owner) }
+                                    .onSuccess { loaded ->
+                                        if ((authenticationState as? AuthenticationState.SignedIn)?.userId == owner) {
+                                            savedDrafts = loaded.filter { it.ownerId == owner && it.status == JourneyStatus.DRAFT }
+                                            journeyDraftMessage = null
+                                        }
+                                    }
+                                    .onFailure { journeyDraftMessage = "Could not load encrypted drafts. Please retry." }
+                                draftsLoading = false
+                            }
+                        }
+                    },
                     onSaveDraft = {
                         val signedIn = authenticationState as? AuthenticationState.SignedIn
                         val activeIds = contacts.filter { it.isActive }.map { it.id }
@@ -126,6 +165,12 @@ fun SafeSignalApp(
                                     onSaveJourneyDraft(signedIn.userId, savedDestination, activeIds, savedDuration)
                                 }.onSuccess {
                                     journeyDraftMessage = "Private draft saved on this device. Location sharing is not active."
+                                    if ((authenticationState as? AuthenticationState.SignedIn)?.userId == signedIn.userId) {
+                                        runCatching { onLoadJourneyDrafts(signedIn.userId) }
+                                            .onSuccess { loaded ->
+                                                savedDrafts = loaded.filter { it.ownerId == signedIn.userId && it.status == JourneyStatus.DRAFT }
+                                            }
+                                    }
                                 }.onFailure {
                                     journeyDraftMessage = "Could not save draft securely. Please retry; tracking was not started."
                                 }

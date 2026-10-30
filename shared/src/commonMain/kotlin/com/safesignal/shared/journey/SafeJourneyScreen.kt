@@ -35,6 +35,9 @@ fun SafeJourneyScreen(
     draftSaving: Boolean = false,
     draftStatusMessage: String? = null,
     onSaveDraft: () -> Unit = {},
+    savedDrafts: List<JourneySession> = emptyList(),
+    draftsLoading: Boolean = false,
+    onRefreshDrafts: () -> Unit = {},
 ) {
     val validation = JourneyDraftValidator.validate(destination, durationMinutes)
     Column(
@@ -103,6 +106,23 @@ fun SafeJourneyScreen(
             colors = ButtonDefaults.buttonColors(backgroundColor = SafeSignalColors.PrimaryAction, contentColor = Color.White),
         ) { Text(if (draftSaving) "Saving draft…" else "Save journey draft") }
         Text(draftStatusMessage ?: "Sign in and add an active trusted contact to save a private draft. Saving does not start tracking.", color = SafeSignalColors.TextSecondary)
+        Card(backgroundColor = SafeSignalColors.BackgroundSurface, elevation = 0.dp) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Saved drafts on this device", color = SafeSignalColors.TextPrimary, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = onRefreshDrafts,
+                    enabled = canSaveDraft && !draftsLoading,
+                    colors = ButtonDefaults.buttonColors(backgroundColor = SafeSignalColors.PrimaryAction, contentColor = Color.White),
+                ) { Text(if (draftsLoading) "Loading…" else "Refresh saved drafts") }
+                if (savedDrafts.isEmpty()) {
+                    Text("No saved drafts loaded for this signed-in account.", color = SafeSignalColors.TextSecondary)
+                } else {
+                    savedDrafts.filter { it.status == JourneyStatus.DRAFT }.forEach { draft ->
+                        Text(draft.destination + " — saved draft only (tracking off)", color = SafeSignalColors.TextPrimary)
+                    }
+                }
+            }
+        }
         Text("Journey monitoring not available yet", color = SafeSignalColors.Emergency, fontWeight = FontWeight.Bold)
         Text(
             "Drafts can be saved securely on this device when signed in. Starting a journey, sharing location, checking in, sending overdue alerts, and the I’m Safe action are not implemented yet.",
