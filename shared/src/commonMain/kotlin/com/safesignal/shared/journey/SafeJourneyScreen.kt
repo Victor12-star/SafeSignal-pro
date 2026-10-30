@@ -31,6 +31,10 @@ fun SafeJourneyScreen(
     selectedContactCount: Int,
     onOpenContacts: () -> Unit,
     onRequestLocation: () -> Unit,
+    canSaveDraft: Boolean = false,
+    draftSaving: Boolean = false,
+    draftStatusMessage: String? = null,
+    onSaveDraft: () -> Unit = {},
 ) {
     val validation = JourneyDraftValidator.validate(destination, durationMinutes)
     Column(
@@ -93,9 +97,15 @@ fun SafeJourneyScreen(
                 ) { Text("Check current location") }
             }
         }
+        Button(
+            onClick = onSaveDraft,
+            enabled = validation.isValid && selectedContactCount > 0 && canSaveDraft && !draftSaving,
+            colors = ButtonDefaults.buttonColors(backgroundColor = SafeSignalColors.PrimaryAction, contentColor = Color.White),
+        ) { Text(if (draftSaving) "Saving draft…" else "Save journey draft") }
+        Text(draftStatusMessage ?: "Sign in and add an active trusted contact to save a private draft. Saving does not start tracking.", color = SafeSignalColors.TextSecondary)
         Text("Journey monitoring not available yet", color = SafeSignalColors.Emergency, fontWeight = FontWeight.Bold)
         Text(
-            "The destination and duration are kept only while this app session remains open. Starting a journey, checking in, sending overdue alerts, and the I’m Safe action will be enabled after their secure implementation and testing.",
+            "Drafts can be saved securely on this device when signed in. Starting a journey, sharing location, checking in, sending overdue alerts, and the I’m Safe action are not implemented yet.",
             color = SafeSignalColors.TextSecondary,
         )
     }
