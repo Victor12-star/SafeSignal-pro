@@ -2,6 +2,7 @@ package com.safesignal.shared.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -29,6 +30,7 @@ fun AppShell(
     content: @Composable () -> Unit,
 ) {
     Scaffold(
+        modifier = Modifier.statusBarsPadding(),
         backgroundColor = SafeSignalColors.BackgroundPrimary,
         bottomBar = {
             SafeSignalBottomNavigation(
