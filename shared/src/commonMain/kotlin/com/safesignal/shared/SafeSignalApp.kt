@@ -29,6 +29,7 @@ import com.safesignal.shared.design.SafeSignalColors
 import com.safesignal.shared.design.SafeSignalTheme
 import com.safesignal.shared.emergency.EmergencyCategory
 import com.safesignal.shared.home.HomeScreen
+import com.safesignal.shared.journey.SafeJourneyScreen
 import com.safesignal.shared.navigation.AppDestination
 import com.safesignal.shared.navigation.AppShell
 import com.safesignal.shared.location.LocationUiState
@@ -46,6 +47,8 @@ fun SafeSignalApp(
     authenticationState: AuthenticationState = AuthenticationState.SignedOut,
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
+    var journeyDestination by remember { mutableStateOf("") }
+    var journeyDuration by remember { mutableStateOf("") }
     val repository = remember(trustedContactRepository) {
         trustedContactRepository ?: InMemoryTrustedContactRepository()
     }
@@ -92,9 +95,14 @@ fun SafeSignalApp(
                     sosStatusMessage = sosStatusMessage,
                 )
 
-                AppDestination.JOURNEY -> FoundationScreen(
-                    title = "Safe Journey",
-                    description = "Journey setup will be connected in its own tested production slice.",
+                AppDestination.JOURNEY -> SafeJourneyScreen(
+                    destination = journeyDestination,
+                    onDestinationChange = { journeyDestination = it },
+                    durationMinutes = journeyDuration,
+                    onDurationChange = { journeyDuration = it },
+                    selectedContactCount = contacts.count { it.isActive },
+                    onOpenContacts = { destination = AppDestination.CONTACTS },
+                    onRequestLocation = onRequestLocation,
                 )
 
                 AppDestination.CONTACTS -> TrustedContactsScreen(
