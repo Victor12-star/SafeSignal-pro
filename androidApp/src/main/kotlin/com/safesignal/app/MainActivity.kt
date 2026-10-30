@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import com.safesignal.app.backend.AndroidBackendProvider
 import com.safesignal.app.contacts.AndroidEncryptedTrustedContactRepository
 import com.safesignal.app.emergency.AndroidEncryptedEmergencyIncidentRepository
+import com.safesignal.app.journey.AndroidEncryptedJourneySessionRepository
 import com.safesignal.app.location.AndroidLocationClient
 import com.safesignal.shared.SafeSignalApp
 import com.safesignal.shared.auth.AuthenticationCallbackPolicy
@@ -30,6 +31,8 @@ import com.safesignal.shared.emergency.EmergencyCategory
 import com.safesignal.shared.emergency.EmergencyIncidentRepository
 import com.safesignal.shared.emergency.EmergencyState
 import com.safesignal.shared.emergency.TransitionEmergencyIncidentUseCase
+import com.safesignal.shared.journey.JourneySession
+import com.safesignal.shared.journey.JourneyStatus
 import com.safesignal.shared.location.LocationQualityPolicy
 import com.safesignal.shared.location.LocationUiState
 import io.github.jan.supabase.SupabaseClient
@@ -83,6 +86,7 @@ class MainActivity : ComponentActivity() {
             applicationContext,
         )
         val locationClient = AndroidLocationClient(applicationContext)
+        val journeyRepository = AndroidEncryptedJourneySessionRepository(applicationContext)
         // A missing or unavailable backend must never prevent the SOS interface from opening.
         val authenticationRepository = runCatching {
             backendProvider.client?.let(::SupabaseAuthenticationSessionRepository)
@@ -93,6 +97,7 @@ class MainActivity : ComponentActivity() {
                 trustedContactRepository = trustedContactRepository,
                 emergencyIncidentRepository = emergencyIncidentRepository,
                 locationClient = locationClient,
+                journeyRepository = journeyRepository,
                 authenticationRepository = authenticationRepository,
                 authClient = runCatching { backendProvider.client }.getOrNull(),
                 sessionRefreshRevision = foregroundSessionRevision,
@@ -106,6 +111,7 @@ private fun SafeSignalAndroidApp(
     trustedContactRepository: AndroidEncryptedTrustedContactRepository,
     emergencyIncidentRepository: EmergencyIncidentRepository,
     locationClient: AndroidLocationClient,
+    journeyRepository: AndroidEncryptedJourneySessionRepository,
     authenticationRepository: AuthenticationSessionRepository?,
     authClient: SupabaseClient?,
     sessionRefreshRevision: Int,
@@ -306,5 +312,27 @@ private fun SafeSignalAndroidApp(
         sosActivated = activeIncidentId != null,
         sosStatusMessage = sosStatusMessage,
         authenticationState = authenticationState,
+        onSaveJourneyDraft = { ownerId, journeyDestination, contactIds, durationMinutes ->
+            // Verify the owner again when saving; do not accept an arbitrary UI-supplied owner.
+            val currentOwner = (authenticationState as? AuthenticationState.SignedIn)?.userId
+            require(!currentOwner.isNullOrBlank() && currentOwner == ownerId) {
+                "Authenticated journey owner required"
+            }
+            val duration = durationMinutes.toLongOrNull()
+                ?: throw IllegalArgumentException("Invalid duration")
+            require(duration in 1..1440) { "Invalid duration" }
+            val now = System.currentTimeMillis()
+            journeyRepository.save(
+                JourneySession(
+                    id = UUID.randomUUID().toString(),
+                    ownerId = currentOwner,
+                    destination = journeyDestination,
+                    expectedArrivalEpochMillis = now + duration * 60_000L,
+                    trustedContactIds = contactIds,
+                    status = JourneyStatus.DRAFT,
+                    createdAtEpochMillis = now,
+                ),
+            )
+        },
     )
 }
