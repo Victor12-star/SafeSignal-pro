@@ -6,11 +6,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -75,6 +76,7 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
@@ -95,8 +97,6 @@ fun HomeScreen(
             selectedCategory = selectedCategory,
             onCategorySelected = { selectedCategory = it },
         )
-
-        Spacer(modifier = Modifier.weight(1f))
 
         SosFoundationControl(
             protectionReady = protectionReady,
@@ -198,7 +198,7 @@ private fun ProtectionStatus(
                         .background(if (protectionReady) SafeSignalColors.Safe else SafeSignalColors.Warning),
                 )
 
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (protectionReady) "Protection Ready" else "Finish safety setup",
                         color = SafeSignalColors.TextPrimary,
@@ -216,7 +216,10 @@ private fun ProtectionStatus(
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.padding(start = 12.dp),
+            ) {
                 Text(
                     text = emergencyNumber,
                     color = SafeSignalColors.TextPrimary,
