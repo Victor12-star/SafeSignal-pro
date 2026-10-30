@@ -312,6 +312,14 @@ private fun SafeSignalAndroidApp(
         sosActivated = activeIncidentId != null,
         sosStatusMessage = sosStatusMessage,
         authenticationState = authenticationState,
+        onLoadJourneyDrafts = { ownerId ->
+            val currentOwner = (authenticationState as? AuthenticationState.SignedIn)?.userId
+            require(!currentOwner.isNullOrBlank() && currentOwner == ownerId) {
+                "Authenticated journey owner required"
+            }
+            journeyRepository.getAllForOwner(currentOwner)
+                .filter { it.status == JourneyStatus.DRAFT }
+        },
         onSaveJourneyDraft = { ownerId, journeyDestination, contactIds, durationMinutes ->
             // Verify the owner again when saving; do not accept an arbitrary UI-supplied owner.
             val currentOwner = (authenticationState as? AuthenticationState.SignedIn)?.userId
