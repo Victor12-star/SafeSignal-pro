@@ -32,6 +32,7 @@ fun SafeJourneyScreen(
     onOpenContacts: () -> Unit,
     onRequestLocation: () -> Unit,
     canSaveDraft: Boolean = false,
+    saveBlockReason: String? = null,
     draftSaving: Boolean = false,
     draftStatusMessage: String? = null,
     onSaveDraft: () -> Unit = {},
@@ -104,10 +105,13 @@ fun SafeJourneyScreen(
         }
         Button(
             onClick = onSaveDraft,
-            enabled = validation.isValid && selectedContactCount > 0 && canSaveDraft && !draftSaving,
+            enabled = !draftSaving,
             colors = ButtonDefaults.buttonColors(backgroundColor = SafeSignalColors.PrimaryAction, contentColor = Color.White),
         ) { Text(if (draftSaving) "Saving draft…" else "Save journey draft") }
-        Text(draftStatusMessage ?: "Sign in and add an active trusted contact to save a private draft. Saving does not start tracking.", color = SafeSignalColors.TextSecondary)
+        Text(
+            draftStatusMessage ?: saveBlockReason ?: "Save a private draft on this device. Saving does not start tracking.",
+            color = SafeSignalColors.TextSecondary,
+        )
         Card(backgroundColor = SafeSignalColors.BackgroundSurface, elevation = 0.dp) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Saved drafts on this device", color = SafeSignalColors.TextPrimary, fontWeight = FontWeight.Bold)
