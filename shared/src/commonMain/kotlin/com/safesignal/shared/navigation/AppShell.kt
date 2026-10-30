@@ -1,22 +1,10 @@
 package com.safesignal.shared.navigation
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Surface
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.Icon
@@ -42,9 +30,6 @@ fun AppShell(
 ) {
     Scaffold(
         backgroundColor = SafeSignalColors.BackgroundPrimary,
-        topBar = {
-            ScreenSwitcher(selectedDestination, onDestinationSelected)
-        },
         bottomBar = {
             SafeSignalBottomNavigation(
                 selectedDestination = selectedDestination,
@@ -107,32 +92,3 @@ private fun AppDestination.icon(): ImageVector = when (this) {
     AppDestination.SETTINGS -> Icons.Filled.Settings
 }
 
-/** Always-visible secondary route into each screen on devices with obscured bottom bars. */
-@Composable
-private fun ScreenSwitcher(
-    selectedDestination: AppDestination,
-    onDestinationSelected: (AppDestination) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        AppDestination.entries.forEach { destination ->
-            val selected = destination == selectedDestination
-            Surface(
-                modifier = Modifier.weight(1f).height(46.dp).clickable { onDestinationSelected(destination) },
-                shape = RoundedCornerShape(14.dp),
-                color = if (selected) SafeSignalColors.PrimaryAction else SafeSignalColors.CardSurface,
-                elevation = if (selected) 2.dp else 0.dp,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = destination.label,
-                        color = if (selected) Color.White else SafeSignalColors.TextSecondary,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    )
-                }
-            }
-        }
-    }
-}
