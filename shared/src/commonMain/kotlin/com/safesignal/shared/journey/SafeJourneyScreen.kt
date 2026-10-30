@@ -32,6 +32,7 @@ fun SafeJourneyScreen(
     onOpenContacts: () -> Unit,
     onRequestLocation: () -> Unit,
 ) {
+    val validation = JourneyDraftValidator.validate(destination, durationMinutes)
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 20.dp),
@@ -48,7 +49,7 @@ fun SafeJourneyScreen(
                 Text("Journey setup", color = SafeSignalColors.TextPrimary, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
                     value = destination,
-                    onValueChange = onDestinationChange,
+                    onValueChange = { if (it.length <= 120) onDestinationChange(it) },
                     label = { Text("Destination") },
                     placeholder = { Text("Where are you going?") },
                     singleLine = true,
@@ -63,9 +64,9 @@ fun SafeJourneyScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    if (durationMinutes.toIntOrNull()?.let { it in 1..1440 } == true) "Estimated duration entered"
-                    else "Enter a duration from 1 to 1440 minutes.",
-                    color = SafeSignalColors.TextSecondary,
+                    if (validation.isValid) "Journey details valid. Monitoring is not active."
+                    else validation.errors.joinToString(". "),
+                    color = if (validation.isValid) SafeSignalColors.Safe else SafeSignalColors.TextSecondary,
                 )
             }
         }
