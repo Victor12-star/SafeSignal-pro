@@ -45,10 +45,13 @@ fun SafeSignalApp(
     sosActivated: Boolean = false,
     sosStatusMessage: String? = null,
     authenticationState: AuthenticationState = AuthenticationState.SignedOut,
+    onSaveJourneyDraft: suspend (String, String, List<String>, String) -> Unit = { _, _, _, _ -> },
 ) {
     var destination by remember { mutableStateOf(AppDestination.SOS) }
     var journeyDestination by remember { mutableStateOf("") }
     var journeyDuration by remember { mutableStateOf("") }
+    var journeySaving by remember { mutableStateOf(false) }
+    var journeyDraftMessage by remember { mutableStateOf<String?>(null) }
     val repository = remember(trustedContactRepository) {
         trustedContactRepository ?: InMemoryTrustedContactRepository()
     }
@@ -103,6 +106,33 @@ fun SafeSignalApp(
                     selectedContactCount = contacts.count { it.isActive },
                     onOpenContacts = { destination = AppDestination.CONTACTS },
                     onRequestLocation = onRequestLocation,
+                    canSaveDraft = authenticationState is AuthenticationState.SignedIn && contactsLoaded && storageMessage == null,
+                    draftSaving = journeySaving,
+                    draftStatusMessage = journeyDraftMessage,
+                    onSaveDraft = {
+                        val signedIn = authenticationState as? AuthenticationState.SignedIn
+                        val activeIds = contacts.filter { it.isActive }.map { it.id }
+                        val savedDestination = journeyDestination.trim()
+                        val savedDuration = journeyDuration
+                        if (signedIn == null || activeIds.isEmpty() || journeySaving ||
+                            !com.safesignal.shared.journey.JourneyDraftValidator.validate(savedDestination, savedDuration).isValid
+                        ) {
+                            journeyDraftMessage = "Sign in, enter valid details and add a trusted contact before saving."
+                        } else {
+                            journeySaving = true
+                            journeyDraftMessage = null
+                            scope.launch {
+                                runCatching {
+                                    onSaveJourneyDraft(signedIn.userId, savedDestination, activeIds, savedDuration)
+                                }.onSuccess {
+                                    journeyDraftMessage = "Private draft saved on this device. Location sharing is not active."
+                                }.onFailure {
+                                    journeyDraftMessage = "Could not save draft securely. Please retry; tracking was not started."
+                                }
+                                journeySaving = false
+                            }
+                        }
+                    },
                 )
 
                 AppDestination.CONTACTS -> TrustedContactsScreen(
