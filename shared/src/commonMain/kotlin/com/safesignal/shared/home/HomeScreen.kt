@@ -112,7 +112,8 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(20.dp),
+            elevation = ButtonDefaults.elevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
             colors = ButtonDefaults.buttonColors(
                 backgroundColor = SafeSignalColors.PrimaryAction,
                 contentColor = Color.White,
@@ -331,7 +332,8 @@ private fun LocationStatusCard(
             Button(
                 onClick = onRequestLocation,
                 enabled = state !is LocationUiState.Loading,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.elevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
                 colors = ButtonDefaults.buttonColors(
                     backgroundColor = SafeSignalColors.PrimaryAction,
                     contentColor = Color.White,
@@ -387,20 +389,20 @@ private fun CategoryChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val borderColor = if (selected) SafeSignalColors.Emergency else Color(0xFF24364D)
-    val background = if (selected) Color(0xFF2A1822) else SafeSignalColors.BackgroundSurface
+    val borderColor = if (selected) SafeSignalColors.PrimaryAction else Color(0xFF34465E)
+    val background = if (selected) Color(0xFF193B63) else SafeSignalColors.CardSurface
 
     Surface(
         modifier = modifier
             .height(48.dp)
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .semantics {
                 role = Role.Button
                 contentDescription = "$text emergency type"
             },
         color = background,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
