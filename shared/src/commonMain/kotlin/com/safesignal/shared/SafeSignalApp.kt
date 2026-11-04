@@ -29,6 +29,7 @@ import com.safesignal.shared.design.SafeSignalColors
 import com.safesignal.shared.design.SafeSignalTheme
 import com.safesignal.shared.emergency.EmergencyCategory
 import com.safesignal.shared.home.HomeScreen
+import com.safesignal.shared.journey.JourneySaveFeedback
 import com.safesignal.shared.journey.JourneySession
 import com.safesignal.shared.journey.JourneyStatus
 import com.safesignal.shared.journey.SafeJourneyScreen
@@ -129,14 +130,14 @@ fun SafeSignalApp(
                     onOpenContacts = { destination = AppDestination.CONTACTS },
                     onRequestLocation = onRequestLocation,
                     canSaveDraft = authenticationState is AuthenticationState.SignedIn && contactsLoaded && storageMessage == null,
-                    saveBlockReason = when {
-                        authenticationState is AuthenticationState.Checking -> "Checking your sign-in. Saving is not available yet."
-                        authenticationState !is AuthenticationState.SignedIn -> "Sign in to save a private journey draft. SOS remains available without signing in."
-                        !contactsLoaded -> "Loading trusted contacts. Try again when loading finishes."
-                        storageMessage != null -> "Trusted contacts could not be loaded securely. Cannot save a draft."
-                        contacts.none { it.isActive } -> "Add at least one active trusted contact before saving."
-                        else -> null
-                    },
+                    saveBlockReason = JourneySaveFeedback.reason(
+                        authenticationState = authenticationState,
+                        contactsLoaded = contactsLoaded,
+                        contactsAvailable = contacts.any { it.isActive },
+                        contactStorageFailed = storageMessage != null,
+                        destination = journeyDestination,
+                        durationMinutes = journeyDuration,
+                    ),
                     draftSaving = journeySaving,
                     draftStatusMessage = journeyDraftMessage,
                     savedDrafts = savedDrafts,
@@ -186,14 +187,14 @@ fun SafeSignalApp(
                         if (signedIn == null || activeIds.isEmpty() || journeySaving ||
                             !com.safesignal.shared.journey.JourneyDraftValidator.validate(savedDestination, savedDuration).isValid
                         ) {
-                            journeyDraftMessage = when {
-                                signedIn == null -> "Sign in to save a draft. SOS remains available without sign-in."
-                                !contactsLoaded || storageMessage != null -> "Trusted contacts are unavailable. Check Contacts and try again."
-                                activeIds.isEmpty() -> "Add at least one active trusted contact on the Contacts page."
-                                !com.safesignal.shared.journey.JourneyDraftValidator.validate(savedDestination, savedDuration).isValid ->
-                                    com.safesignal.shared.journey.JourneyDraftValidator.validate(savedDestination, savedDuration).errors.joinToString(". ")
-                                else -> "A draft is already being saved."
-                            }
+                            journeyDraftMessage = JourneySaveFeedback.reason(
+                                authenticationState = authenticationState,
+                                contactsLoaded = contactsLoaded,
+                                contactsAvailable = activeIds.isNotEmpty(),
+                                contactStorageFailed = storageMessage != null,
+                                destination = savedDestination,
+                                durationMinutes = savedDuration,
+                            ) ?: "A draft is already being saved."
                         } else {
                             journeySaving = true
                             journeyDraftMessage = null
